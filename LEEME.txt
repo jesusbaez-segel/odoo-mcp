@@ -1,0 +1,28 @@
+MCP de Odoo para Claude - Instalacion
+=====================================
+
+Que necesitas tener instalado antes:
+  - Docker Desktop  (gratis, en docker.com)
+  - Claude Code o Claude Desktop  (claude.com)
+
+Pasos:
+  1. Descomprime este ZIP en una carpeta (por ejemplo Documentos\odoo-mcp).
+  2. Abre Docker Desktop y espera a que termine de arrancar.
+  3. Doble clic en  instalar.bat
+  4. Responde lo que te pregunta:
+       - URL de tu Odoo   (ej.: https://odoo.segel.com.py)
+       - Tu email de inicio de sesion en Odoo
+       - Tu contrasena de Odoo (no se muestra al escribir)
+     El asistente verifica el acceso, guarda la configuracion en tu maquina
+     y registra el servidor en Claude automaticamente.
+  5. Abre (o reinicia) Claude y pide:  "muestrame mis proyectos de Odoo"
+
+Que puedes pedirle a Claude despues:
+  - "muestrame el tablero del proyecto X"
+  - "crea una tarea ... y asignasela a ..."
+  - "mueve la tarea N a En curso"
+  - "comenta en la tarea N que ..."
+  y cualquier otra cosa de Odoo (clientes, ventas, facturas...).
+
+Tu contrasena queda guardada SOLO en tu maquina (archivo .env de esta
+carpeta). No compartas ese archivo con nadie.
