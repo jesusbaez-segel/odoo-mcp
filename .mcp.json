@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--env-file",
+        ".env",
+        "--add-host=host.docker.internal:host-gateway",
+        "odoo-mcp"
+      ]
+    }
+  }
+}

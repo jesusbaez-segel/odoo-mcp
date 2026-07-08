@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(uv *)",
+      "PowerShell(docker info *)",
+      "PowerShell(docker build *)",
+      "Bash(docker run *)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
