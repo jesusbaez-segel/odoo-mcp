@@ -14,7 +14,27 @@ en tiempo de ejecución). Nota: Odoo 13 no tiene API keys; usa `ODOO_PASSWORD`.
 - Una instancia de Odoo accesible y una **API key** de tu usuario
   (en Odoo: *Preferencias → Seguridad de la cuenta → Claves API → Nueva clave*)
 
-## Instalación
+## Instalación fácil (Windows)
+
+Doble clic en **`instalar.bat`**. El asistente comprueba Docker, carga la imagen
+(desde `odoo-mcp.tar.gz` si existe, o la construye), te pide la URL de tu Odoo,
+tu email y tu contraseña (detecta solo el nombre de la base de datos), verifica
+el acceso, guarda el `.env` y registra el servidor en Claude Code. Al terminar,
+abre Claude y pide: *«muéstrame mis proyectos de Odoo»*.
+
+### Cómo pasárselo a otra persona
+
+Comparte estos 3 archivos (por Drive, USB, etc.):
+
+1. `odoo-mcp.tar.gz` (la imagen del servidor, ~54 MB)
+2. `instalar.bat`
+3. `configurar.ps1`
+
+La otra persona los pone en una carpeta, hace doble clic en `instalar.bat` y el
+asistente le pide **sus** datos de Odoo. Necesita tener Docker Desktop y Claude
+instalados. ⚠️ No compartas tu archivo `.env`: contiene tu contraseña.
+
+## Instalación manual
 
 1. Construye la imagen:
 
