@@ -5,8 +5,8 @@ Pensado para **gestionar proyectos y tableros kanban** (crear/mover/asignar tare
 comentar, gestionar columnas…) y, además, con una capa genérica para operar sobre
 **cualquier modelo de Odoo** (clientes, ventas, facturas…).
 
-Compatible con Odoo 14–18 self-hosted y Odoo.sh (detecta las diferencias de versión
-en tiempo de ejecución).
+Compatible con Odoo 13–18 self-hosted y Odoo.sh (detecta las diferencias de versión
+en tiempo de ejecución). Nota: Odoo 13 no tiene API keys; usa `ODOO_PASSWORD`.
 
 ## Requisitos
 

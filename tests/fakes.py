@@ -14,10 +14,15 @@ class FakeClient:
         self,
         responses: dict[tuple[str, str], Any] | None = None,
         fields: dict[str, dict[str, dict]] | None = None,
+        version_major: int = 17,
     ):
         self.calls: list[tuple[str, str, list, dict]] = []
         self.responses = dict(responses or {})
         self.fields = dict(fields or {})
+        self.version_major = version_major
+
+    def server_major(self) -> int:
+        return self.version_major
 
     def fields_info(self, model: str) -> dict[str, dict]:
         try:

@@ -515,12 +515,20 @@ def assign_task(
 
 
 def add_comment(client: OdooClient, task_id: int, body: str) -> dict:
-    message_id = client.execute(
-        "project.task",
-        "message_post",
-        [[task_id]],
-        {"body": body, "message_type": "comment", "subtype_xmlid": "mail.mt_comment"},
-    )
+    kwargs: dict[str, Any] = {"body": body, "message_type": "comment"}
+    major = client.server_major()
+    if major and major < 14:
+        kwargs["subtype"] = "mail.mt_comment"  # Odoo <=13 no conoce subtype_xmlid
+    else:
+        kwargs["subtype_xmlid"] = "mail.mt_comment"
+    try:
+        message_id = client.execute("project.task", "message_post", [[task_id]], kwargs)
+    except OdooError as exc:
+        # En algunas versiones el mail.message devuelto no se puede serializar
+        # por XML-RPC, pero el comentario sí queda publicado.
+        if "marshal" not in str(exc).lower():
+            raise
+        message_id = None
     return {"task_id": task_id, "message_id": message_id, "url": _task_url(client, task_id)}
 
 

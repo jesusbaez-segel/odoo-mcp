@@ -412,6 +412,25 @@ def test_add_comment():
     assert args == [[100]]
     assert kwargs["body"] == "<p>Hola equipo</p>"
     assert kwargs["message_type"] == "comment"
+    assert kwargs["subtype_xmlid"] == "mail.mt_comment"
+
+
+def test_add_comment_odoo_13_usa_subtype():
+    client = FakeClient({("project.task", "message_post"): 900}, version_major=13)
+    projects.add_comment(client, 100, "Hola")
+    _, kwargs = client.last_call("project.task", "message_post")
+    assert kwargs["subtype"] == "mail.mt_comment"
+    assert "subtype_xmlid" not in kwargs
+
+
+def test_add_comment_tolera_error_de_marshalling():
+    def boom(args, kwargs):
+        raise OdooError("Odoo: cannot marshal <class 'odoo.api.mail.message'> objects")
+
+    client = FakeClient({("project.task", "message_post"): boom})
+    result = projects.add_comment(client, 100, "Hola")
+    assert result["message_id"] is None
+    assert result["task_id"] == 100
 
 
 def test_list_stages_incluye_recuentos():

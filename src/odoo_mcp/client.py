@@ -59,6 +59,7 @@ class OdooClient:
         self._common = _make_proxy(base, "/xmlrpc/2/common", settings.timeout)
         self._object = _make_proxy(base, "/xmlrpc/2/object", settings.timeout)
         self._uid: int | None = None
+        self._server_major: int | None = None
         self._fields_cache: dict[str, dict[str, dict[str, Any]]] = {}
         # xmlrpc.client no es thread-safe y las tools async pueden solaparse
         self._lock = threading.Lock()
@@ -109,6 +110,16 @@ class OdooClient:
                 raise OdooError(_fault_message(fault)) from fault
             except (OSError, xmlrpc.client.Error) as exc:
                 raise OdooError(f"Error de conexión con Odoo: {exc}") from exc
+
+    def server_major(self) -> int:
+        """Versión mayor del servidor Odoo (13, 14, ... ); 0 si no se pudo saber."""
+        if self._server_major is None:
+            try:
+                info = self._common.version()
+                self._server_major = int(info["server_version_info"][0])
+            except (OSError, xmlrpc.client.Error, KeyError, ValueError, TypeError):
+                self._server_major = 0
+        return self._server_major
 
     def fields_info(self, model: str) -> dict[str, dict[str, Any]]:
         """fields_get cacheado con los atributos mínimos para adaptar el código
