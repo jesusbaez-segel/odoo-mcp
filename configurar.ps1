@@ -1,7 +1,9 @@
 # Asistente de configuracion del MCP de Odoo (Windows).
 # Pide URL, email y contrasena, los verifica contra Odoo, guarda el .env y
 # registra el servidor en Claude Code. Compatible con Windows PowerShell 5.1.
-$ErrorActionPreference = 'Stop'
+# EAP=Continue: con 'Stop', cualquier texto que un comando nativo (docker,
+# claude) escriba en stderr bajo redireccion aborta el script en PS 5.1.
+$ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host ""
@@ -11,7 +13,7 @@ Write-Host "  ------------------------------------------"
 # --- 1. Docker -----------------------------------------------------------
 Write-Host ""
 Write-Host "[1/5] Comprobando Docker..." -ForegroundColor Cyan
-docker info *> $null
+docker info 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Docker no responde. Instala Docker Desktop (docker.com), abrelo," -ForegroundColor Red
     Write-Host "espera a que arranque y vuelve a ejecutar este asistente." -ForegroundColor Red
@@ -22,7 +24,7 @@ Write-Host "      Docker OK"
 
 # --- 2. Imagen del servidor ----------------------------------------------
 Write-Host "[2/5] Comprobando la imagen odoo-mcp..." -ForegroundColor Cyan
-docker image inspect odoo-mcp *> $null
+docker image inspect odoo-mcp 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     if (Test-Path (Join-Path $root 'odoo-mcp.tar.gz')) {
         Write-Host "      Cargando imagen desde odoo-mcp.tar.gz (1-2 minutos)..."
@@ -110,8 +112,8 @@ Write-Host "      Guardado en $envPath (queda solo en esta maquina)"
 
 $claude = Get-Command claude -ErrorAction SilentlyContinue
 if ($claude) {
-    claude mcp remove odoo -s user *> $null
-    claude mcp add odoo -s user -- docker run -i --rm --env-file "$envPath" --add-host=host.docker.internal:host-gateway odoo-mcp
+    claude mcp remove odoo -s user 2>&1 | Out-Null
+    claude mcp add odoo -s user -- docker run -i --rm --env-file "$envPath" --add-host=host.docker.internal:host-gateway odoo-mcp 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "      Servidor 'odoo' registrado en Claude Code." -ForegroundColor Green
     } else {
