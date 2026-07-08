@@ -18,6 +18,7 @@ class Settings:
     db: str
     username: str
     api_key: str
+    timeout: float = 60.0
 
 
 _ENV_VARS = {
@@ -37,7 +38,12 @@ def adjust_url_for_docker(url: str, in_docker: bool) -> str:
     donde corre Odoo; Docker Desktop expone el host como host.docker.internal."""
     if not in_docker:
         return url
-    adjusted = re.sub(r"(?<=://)(localhost|127\.0\.0\.1)", "host.docker.internal", url, count=1)
+    adjusted = re.sub(
+        r"(?<=://)(localhost|127\.0\.0\.1|0\.0\.0\.0)(?=[:/]|$)",
+        "host.docker.internal",
+        url,
+        count=1,
+    )
     if adjusted != url:
         print(
             f"odoo-mcp: ODOO_URL reescrita {url!r} -> {adjusted!r} (localhost no es "
@@ -67,4 +73,9 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
             "Preferencias -> Seguridad de la cuenta -> Claves API."
         )
     values["url"] = adjust_url_for_docker(values["url"].rstrip("/"), _running_in_docker())
-    return Settings(**values)
+    raw_timeout = env.get("ODOO_TIMEOUT", "").strip()
+    try:
+        timeout = float(raw_timeout) if raw_timeout else 60.0
+    except ValueError:
+        raise ConfigError(f"ODOO_TIMEOUT debe ser un número de segundos, no {raw_timeout!r}.")
+    return Settings(timeout=timeout, **values)

@@ -1,6 +1,6 @@
 from odoo_mcp import generic
 
-from conftest import FakeClient
+from fakes import FakeClient
 
 
 def test_search_records_pasa_dominio_y_kwargs():
@@ -30,6 +30,16 @@ def test_search_records_sin_dominio_usa_lista_vacia():
 def test_count_records():
     client = FakeClient({("res.partner", "search_count"): 42})
     assert generic.count_records(client, "res.partner", [["x", "=", 1]]) == 42
+    args, kwargs = client.last_call("res.partner", "search_count")
+    assert args == [[["x", "=", 1]]]
+    assert kwargs == {}
+
+
+def test_count_records_sin_dominio():
+    client = FakeClient({("res.partner", "search_count"): 0})
+    generic.count_records(client, "res.partner")
+    args, _ = client.last_call("res.partner", "search_count")
+    assert args == [[]]
 
 
 def test_read_records_sin_fields_no_pasa_kwargs():

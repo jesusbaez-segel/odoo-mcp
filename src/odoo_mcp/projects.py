@@ -26,6 +26,11 @@ def _priority_value(priority: str) -> str:
     return _PRIORITY_ALIASES[key]
 
 
+def _escape_like(value: str) -> str:
+    """Escapa los comodines SQL de like/ilike para tratar el valor como literal."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _task_url(client: OdooClient, task_id: int) -> str:
     return f"{client.base_url}/web#id={task_id}&model=project.task&view_type=form"
 
@@ -52,12 +57,21 @@ def _resolve_by_name(
     hint: str = "",
 ) -> tuple[int, str]:
     """Resuelve una referencia por id o por nombre (exacto primero, ilike después)."""
-    if isinstance(ref, int) or (isinstance(ref, str) and ref.strip().isdigit()):
-        record_id = int(ref)
-        rows = client.execute(model, "read", [[record_id]], {"fields": ["name"]})
-        if not rows:
-            raise OdooError(f"No existe {what} con id {record_id}.{hint}")
-        return record_id, rows[0]["name"]
+    if isinstance(ref, int) or (isinstance(ref, str) and ref.strip().isdecimal()):
+        record_id = int(str(ref).strip())
+        domain = [("id", "=", record_id)] + list(domain_extra or [])
+        rows = client.execute(
+            model,
+            "search_read",
+            [domain],
+            {"fields": ["name"], "limit": 1, "context": {"active_test": False}},
+        )
+        if rows:
+            return record_id, rows[0]["name"]
+        if isinstance(ref, int):
+            scope = " (o no pertenece al ámbito indicado)" if domain_extra else ""
+            raise OdooError(f"No existe {what} con id {record_id}{scope}.{hint}")
+        # Un string numérico puede ser un nombre ('2024'): probar por nombre.
     name = str(ref).strip()
     domain = list(domain_extra or []) + [("name", "ilike", name)]
     rows = client.execute(
@@ -98,12 +112,19 @@ def resolve_stage(client: OdooClient, project_id: int, stage: str | int) -> tupl
 
 
 def resolve_user(client: OdooClient, user: str | int) -> tuple[int, str]:
-    if isinstance(user, int) or (isinstance(user, str) and user.strip().isdigit()):
-        user_id = int(user)
-        rows = client.execute("res.users", "read", [[user_id]], {"fields": ["name"]})
-        if not rows:
+    if isinstance(user, int) or (isinstance(user, str) and user.strip().isdecimal()):
+        user_id = int(str(user).strip())
+        rows = client.execute(
+            "res.users",
+            "search_read",
+            [[("id", "=", user_id)]],
+            {"fields": ["name"], "limit": 1, "context": {"active_test": False}},
+        )
+        if rows:
+            return user_id, rows[0]["name"]
+        if isinstance(user, int):
             raise OdooError(f"No existe el usuario con id {user_id}.")
-        return user_id, rows[0]["name"]
+        # Un login puramente numérico ('1234') se busca por nombre/login.
     name = str(user).strip()
     domain = ["|", ("name", "ilike", name), ("login", "ilike", name)]
     rows = client.execute(
@@ -196,7 +217,7 @@ def list_projects(
     return result
 
 
-def get_board(client: OdooClient, project: str | int) -> dict:
+def get_board(client: OdooClient, project: str | int, max_tasks: int = 200) -> dict:
     project_id, project_name = resolve_project(client, project)
     stages = client.execute(
         "project.task.type",
@@ -206,11 +227,14 @@ def get_board(client: OdooClient, project: str | int) -> dict:
     )
     afield = _assignee_field(client)
     fields = _existing_fields(client, "project.task", _TASK_CARD_FIELDS + [afield])
+    total = client.execute(
+        "project.task", "search_count", [[("project_id", "=", project_id)]]
+    )
     tasks = client.execute(
         "project.task",
         "search_read",
         [[("project_id", "=", project_id)]],
-        {"fields": fields, "order": "sequence asc, id asc"},
+        {"fields": fields, "order": "sequence asc, id asc", "limit": max_tasks},
     )
     names = _assignee_names(client, tasks, afield)
 
@@ -237,15 +261,21 @@ def get_board(client: OdooClient, project: str | int) -> dict:
             order.append(key)
         columns[key]["tasks"].append(_card(task, afield, names, client))
 
-    return {
+    board = {
         "project": {
             "id": project_id,
             "name": project_name,
             "url": _project_url(client, project_id),
         },
-        "total_tasks": len(tasks),
+        "total_tasks": total,
         "columns": [columns[key] for key in order],
     }
+    if total > len(tasks):
+        board["note"] = (
+            f"Mostrando {len(tasks)} de {total} tareas; usa list_tasks con filtros "
+            "para ver el resto."
+        )
+    return board
 
 
 def list_tasks(
@@ -265,7 +295,11 @@ def list_tasks(
             stage_id, _ = resolve_stage(client, project_id, stage)
             domain.append(("stage_id", "=", stage_id))
     elif stage:
-        domain.append(("stage_id.name", "ilike", stage))
+        stage_text = str(stage).strip()
+        if stage_text.isdecimal():
+            domain.append(("stage_id", "=", int(stage_text)))
+        else:
+            domain.append(("stage_id.name", "ilike", _escape_like(stage_text)))
     if assignee:
         user_id, _ = resolve_user(client, assignee)
         domain.append((afield, "in", [user_id]))
@@ -327,18 +361,22 @@ def get_task(client: OdooClient, task_id: int) -> dict:
 
 
 def _resolve_tags(client: OdooClient, tags: list[str]) -> list[int]:
-    """Resuelve etiquetas por nombre, creando las que no existan."""
+    """Resuelve etiquetas por nombre exacto (sin distinguir mayúsculas), creando
+    las que no existan."""
     ids = []
     for tag in tags:
         name = str(tag).strip()
         rows = client.execute(
             "project.tags",
             "search_read",
-            [[("name", "=ilike", name)]],
-            {"fields": ["name"], "limit": 1},
+            [[("name", "ilike", _escape_like(name))]],
+            {"fields": ["name"], "limit": 20},
         )
-        if rows:
-            ids.append(rows[0]["id"])
+        exact = next(
+            (r for r in rows if str(r["name"]).strip().lower() == name.lower()), None
+        )
+        if exact:
+            ids.append(exact["id"])
         else:
             ids.append(client.execute("project.tags", "create", [{"name": name}]))
     return ids

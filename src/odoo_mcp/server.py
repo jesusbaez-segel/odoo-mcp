@@ -1,9 +1,16 @@
-"""Servidor MCP: wrappers finos de herramienta sobre generic.py y projects.py."""
+"""Servidor MCP: wrappers finos de herramienta sobre generic.py y projects.py.
+
+Las tools son async y delegan el trabajo bloqueante (XML-RPC) a un hilo para que
+el event loop siga atendiendo el protocolo (ping, cancelaciones) mientras una
+llamada a Odoo está en vuelo.
+"""
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
+from anyio import to_thread
 from mcp.server.fastmcp import FastMCP
 
 from . import generic, projects
@@ -32,25 +39,30 @@ def get_client() -> OdooClient:
     return _client
 
 
+async def _run(func, *args, **kwargs):
+    return await to_thread.run_sync(partial(func, *args, **kwargs))
+
+
 # --- Proyectos y tableros -----------------------------------------------------
 
 
 @mcp.tool()
-def list_projects(name: str | None = None, limit: int = 50):
+async def list_projects(name: str | None = None, limit: int = 50):
     """Lista los proyectos de Odoo (opcionalmente filtrados por nombre), con su
     número de tareas, responsable y URL."""
-    return projects.list_projects(get_client(), name=name, limit=limit)
+    return await _run(projects.list_projects, get_client(), name=name, limit=limit)
 
 
 @mcp.tool()
-def get_board(project: str | int):
+async def get_board(project: str | int, max_tasks: int = 200):
     """Devuelve el tablero kanban completo de un proyecto (por nombre o id):
-    columnas/etapas en orden con sus tarjetas (asignados, fecha límite, prioridad)."""
-    return projects.get_board(get_client(), project)
+    columnas/etapas en orden con sus tarjetas (asignados, fecha límite, prioridad).
+    Si hay más tareas que max_tasks, lo indica en 'note'."""
+    return await _run(projects.get_board, get_client(), project, max_tasks=max_tasks)
 
 
 @mcp.tool()
-def list_tasks(
+async def list_tasks(
     project: str | int | None = None,
     stage: str | None = None,
     assignee: str | None = None,
@@ -59,20 +71,26 @@ def list_tasks(
 ):
     """Busca tareas con filtros opcionales: proyecto, etapa/columna, asignado
     (nombre o login) y texto en el título."""
-    return projects.list_tasks(
-        get_client(), project=project, stage=stage, assignee=assignee, query=query, limit=limit
+    return await _run(
+        projects.list_tasks,
+        get_client(),
+        project=project,
+        stage=stage,
+        assignee=assignee,
+        query=query,
+        limit=limit,
     )
 
 
 @mcp.tool()
-def get_task(task_id: int):
+async def get_task(task_id: int):
     """Detalle completo de una tarea: descripción, etapa, asignados, etiquetas,
     fechas y URL."""
-    return projects.get_task(get_client(), task_id)
+    return await _run(projects.get_task, get_client(), task_id)
 
 
 @mcp.tool()
-def create_task(
+async def create_task(
     project: str | int,
     name: str,
     description: str | None = None,
@@ -85,7 +103,8 @@ def create_task(
     """Crea una tarea en un proyecto. description admite HTML; deadline en formato
     YYYY-MM-DD; priority 'normal' o 'alta'; assignees por nombre, login o id; las
     etiquetas (tags) se crean si no existen."""
-    return projects.create_task(
+    return await _run(
+        projects.create_task,
         get_client(),
         project,
         name,
@@ -99,7 +118,7 @@ def create_task(
 
 
 @mcp.tool()
-def update_task(
+async def update_task(
     task_id: int,
     name: str | None = None,
     description: str | None = None,
@@ -109,7 +128,8 @@ def update_task(
 ):
     """Actualiza campos de una tarea (solo los indicados). deadline YYYY-MM-DD;
     priority 'normal' o 'alta'; stage por nombre o id de columna."""
-    return projects.update_task(
+    return await _run(
+        projects.update_task,
         get_client(),
         task_id,
         name=name,
@@ -121,62 +141,62 @@ def update_task(
 
 
 @mcp.tool()
-def move_task(task_id: int, stage: str | int):
+async def move_task(task_id: int, stage: str | int):
     """Mueve una tarjeta a otra columna del tablero (etapa por nombre o id)."""
-    return projects.move_task(get_client(), task_id, stage)
+    return await _run(projects.move_task, get_client(), task_id, stage)
 
 
 @mcp.tool()
-def assign_task(task_id: int, assignees: list[str], replace: bool = True):
+async def assign_task(task_id: int, assignees: list[str], replace: bool = True):
     """Asigna usuarios a una tarea (por nombre, login o id). Con replace=False los
     añade sin quitar los actuales."""
-    return projects.assign_task(get_client(), task_id, assignees, replace=replace)
+    return await _run(projects.assign_task, get_client(), task_id, assignees, replace=replace)
 
 
 @mcp.tool()
-def add_comment(task_id: int, body: str):
+async def add_comment(task_id: int, body: str):
     """Publica un comentario en el hilo de mensajes de una tarea (admite HTML)."""
-    return projects.add_comment(get_client(), task_id, body)
+    return await _run(projects.add_comment, get_client(), task_id, body)
 
 
 @mcp.tool()
-def list_stages(project: str | int):
+async def list_stages(project: str | int):
     """Lista las columnas/etapas del tablero de un proyecto con su número de tareas."""
-    return projects.list_stages(get_client(), project)
+    return await _run(projects.list_stages, get_client(), project)
 
 
 @mcp.tool()
-def create_stage(project: str | int, name: str, sequence: int | None = None):
+async def create_stage(project: str | int, name: str, sequence: int | None = None):
     """Añade una columna/etapa al tablero de un proyecto. sequence controla el orden
     (menor = más a la izquierda)."""
-    return projects.create_stage(get_client(), project, name, sequence=sequence)
+    return await _run(projects.create_stage, get_client(), project, name, sequence=sequence)
 
 
 @mcp.tool()
-def create_project(name: str, description: str | None = None):
+async def create_project(name: str, description: str | None = None):
     """Crea un proyecto nuevo. Después añade columnas con create_stage."""
-    return projects.create_project(get_client(), name, description=description)
+    return await _run(projects.create_project, get_client(), name, description=description)
 
 
 # --- Capa genérica (cualquier modelo de Odoo) ---------------------------------
 
 
 @mcp.tool()
-def list_models(pattern: str | None = None, limit: int = 100):
+async def list_models(pattern: str | None = None, limit: int = 100):
     """Lista los modelos instalados en Odoo (nombre técnico y etiqueta), filtrables
     por texto. Ej.: pattern='sale' -> sale.order, sale.order.line, ..."""
-    return generic.list_models(get_client(), pattern=pattern, limit=limit)
+    return await _run(generic.list_models, get_client(), pattern=pattern, limit=limit)
 
 
 @mcp.tool()
-def get_model_fields(model: str):
+async def get_model_fields(model: str):
     """Campos de un modelo con tipo, etiqueta, requerido y relación. Úsalo antes de
     crear o actualizar registros de un modelo que no conozcas."""
-    return generic.get_model_fields(get_client(), model)
+    return await _run(generic.get_model_fields, get_client(), model)
 
 
 @mcp.tool()
-def search_records(
+async def search_records(
     model: str,
     domain: list[Any] | None = None,
     fields: list[str] | None = None,
@@ -186,45 +206,52 @@ def search_records(
 ):
     """Busca y lee registros de cualquier modelo con un dominio Odoo.
     Ej.: model='res.partner', domain=[["is_company","=",true]], fields=["name","email"]."""
-    return generic.search_records(
-        get_client(), model, domain=domain, fields=fields, limit=limit, offset=offset, order=order
+    return await _run(
+        generic.search_records,
+        get_client(),
+        model,
+        domain=domain,
+        fields=fields,
+        limit=limit,
+        offset=offset,
+        order=order,
     )
 
 
 @mcp.tool()
-def count_records(model: str, domain: list[Any] | None = None):
+async def count_records(model: str, domain: list[Any] | None = None):
     """Cuenta los registros que cumplen un dominio Odoo."""
-    return generic.count_records(get_client(), model, domain=domain)
+    return await _run(generic.count_records, get_client(), model, domain=domain)
 
 
 @mcp.tool()
-def read_records(model: str, ids: list[int], fields: list[str] | None = None):
+async def read_records(model: str, ids: list[int], fields: list[str] | None = None):
     """Lee registros por id. Sin fields devuelve todos los campos."""
-    return generic.read_records(get_client(), model, ids, fields=fields)
+    return await _run(generic.read_records, get_client(), model, ids, fields=fields)
 
 
 @mcp.tool()
-def create_record(model: str, values: dict[str, Any]):
+async def create_record(model: str, values: dict[str, Any]):
     """Crea un registro y devuelve su id. Para relaciones many2one pasa el id;
     para many2many usa comandos Odoo, p. ej. [[6,0,[ids]]]."""
-    return generic.create_record(get_client(), model, values)
+    return await _run(generic.create_record, get_client(), model, values)
 
 
 @mcp.tool()
-def update_records(model: str, ids: list[int], values: dict[str, Any]):
+async def update_records(model: str, ids: list[int], values: dict[str, Any]):
     """Escribe los mismos valores en todos los registros indicados."""
-    return generic.update_records(get_client(), model, ids, values)
+    return await _run(generic.update_records, get_client(), model, ids, values)
 
 
 @mcp.tool()
-def delete_records(model: str, ids: list[int]):
+async def delete_records(model: str, ids: list[int]):
     """Elimina registros de forma permanente. Confirma con el usuario antes de usar
     esta herramienta."""
-    return generic.delete_records(get_client(), model, ids)
+    return await _run(generic.delete_records, get_client(), model, ids)
 
 
 @mcp.tool()
-def call_method(
+async def call_method(
     model: str,
     method: str,
     args: list[Any] | None = None,
@@ -233,7 +260,7 @@ def call_method(
     """Ejecuta cualquier método público del ORM de Odoo. Para métodos de registro,
     el primer elemento de args es la lista de ids.
     Ej.: model='sale.order', method='action_confirm', args=[[42]]."""
-    return generic.call_method(get_client(), model, method, args=args, kwargs=kwargs)
+    return await _run(generic.call_method, get_client(), model, method, args=args, kwargs=kwargs)
 
 
 def main() -> None:

@@ -32,13 +32,16 @@ en tiempo de ejecución).
 3. Registra el servidor en Claude:
 
    - **Claude Code**: este repositorio ya incluye `.mcp.json`; abre Claude Code en
-     esta carpeta y aprueba el servidor. Para usarlo desde cualquier carpeta:
+     esta carpeta y aprueba el servidor. Para usarlo desde cualquier carpeta
+     (sustituye `<RUTA-DEL-PROYECTO>` por la ruta absoluta de tu copia de este
+     repositorio; en Windows usa barras normales, p. ej. `C:/proyectos/mcpOdoo`):
 
      ```bash
-     claude mcp add odoo -s user -- docker run -i --rm --env-file C:/Users/Acer/Desktop/mcpOdoo/.env --add-host=host.docker.internal:host-gateway odoo-mcp
+     claude mcp add odoo -s user -- docker run -i --rm --env-file <RUTA-DEL-PROYECTO>/.env --add-host=host.docker.internal:host-gateway odoo-mcp
      ```
 
-   - **Claude Desktop**: añade a `claude_desktop_config.json`:
+   - **Claude Desktop**: añade a `claude_desktop_config.json` (misma nota sobre
+     `<RUTA-DEL-PROYECTO>`):
 
      ```json
      {
@@ -47,7 +50,7 @@ en tiempo de ejecución).
            "command": "docker",
            "args": [
              "run", "-i", "--rm",
-             "--env-file", "C:/Users/Acer/Desktop/mcpOdoo/.env",
+             "--env-file", "<RUTA-DEL-PROYECTO>/.env",
              "--add-host=host.docker.internal:host-gateway",
              "odoo-mcp"
            ]

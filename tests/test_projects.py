@@ -3,7 +3,7 @@ import pytest
 from odoo_mcp import projects
 from odoo_mcp.client import OdooError
 
-from conftest import LEGACY_TASK_FIELDS, MODERN_TASK_FIELDS, FakeClient
+from fakes import LEGACY_TASK_FIELDS, MODERN_TASK_FIELDS, FakeClient
 
 PROJECT_ROWS = [{"id": 10, "name": "Web Corporativa"}]
 STAGE_ROWS = [
@@ -19,6 +19,7 @@ def board_client(task_rows, fields=MODERN_TASK_FIELDS):
             ("project.project", "search_read"): PROJECT_ROWS,
             ("project.project", "read"): PROJECT_ROWS,
             ("project.task.type", "search_read"): STAGE_ROWS,
+            ("project.task", "search_count"): len(task_rows),
             ("project.task", "search_read"): task_rows,
             ("res.users", "read"): [
                 {"id": 5, "name": "Ana"},
@@ -98,6 +99,20 @@ def test_get_board_version_antigua_usa_user_id():
     assert "user_ids" not in kwargs["fields"]
 
 
+def test_get_board_trunca_y_avisa():
+    tasks = [
+        {"id": 100, "name": "A", "stage_id": [1, "Por hacer"], "user_ids": [], "priority": "0"},
+        {"id": 101, "name": "B", "stage_id": [1, "Por hacer"], "user_ids": [], "priority": "0"},
+    ]
+    client = board_client(tasks)
+    client.responses[("project.task", "search_count")] = 500
+    board = projects.get_board(client, "Web Corporativa", max_tasks=2)
+    assert board["total_tasks"] == 500
+    assert "Mostrando 2 de 500" in board["note"]
+    _, kwargs = client.last_call("project.task", "search_read")
+    assert kwargs["limit"] == 2
+
+
 def test_resolve_project_prefiere_coincidencia_exacta():
     client = FakeClient(
         {
@@ -127,6 +142,110 @@ def test_resolve_project_inexistente():
     client = FakeClient({("project.project", "search_read"): []})
     with pytest.raises(OdooError, match="No se encontró"):
         projects.resolve_project(client, "NoExiste")
+
+
+def test_resolve_project_nombre_numerico_cae_a_busqueda_por_nombre():
+    client = FakeClient(
+        {
+            ("project.project", "search_read"): lambda args, kwargs: (
+                [] if args[0][0] == ("id", "=", 2024) else [{"id": 33, "name": "2024"}]
+            )
+        }
+    )
+    assert projects.resolve_project(client, "2024") == (33, "2024")
+
+
+def test_resolve_stage_por_id_valida_pertenencia_al_proyecto():
+    client = FakeClient({("project.task.type", "search_read"): []})
+    with pytest.raises(OdooError, match="id 42"):
+        projects.resolve_stage(client, 10, 42)
+    args, kwargs = client.last_call("project.task.type", "search_read")
+    assert args[0] == [("id", "=", 42), ("project_ids", "=", 10)]
+    assert kwargs["context"] == {"active_test": False}
+
+
+def test_resolve_tags_exige_igualdad_exacta_y_escapa_comodines():
+    client = FakeClient(
+        {
+            ("project.tags", "search_read"): [{"id": 70, "name": "500 páginas"}],
+            ("project.tags", "create"): 71,
+        }
+    )
+    assert projects._resolve_tags(client, ["50%"]) == [71]
+    args, _ = client.last_call("project.tags", "search_read")
+    assert args[0] == [("name", "ilike", "50\\%")]
+
+
+def test_list_tasks_combina_filtros():
+    client = FakeClient(
+        {
+            ("project.project", "search_read"): PROJECT_ROWS,
+            ("project.task.type", "search_read"): [{"id": 2, "name": "En curso"}],
+            ("res.users", "search_read"): [{"id": 5, "name": "Ana", "login": "ana"}],
+            ("project.task", "search_read"): [
+                {
+                    "id": 100,
+                    "name": "Diseñar portada",
+                    "stage_id": [2, "En curso"],
+                    "project_id": [10, "Web Corporativa"],
+                    "user_ids": [5],
+                    "priority": "0",
+                }
+            ],
+            ("res.users", "read"): [{"id": 5, "name": "Ana"}],
+        },
+        fields=MODERN_TASK_FIELDS,
+    )
+    result = projects.list_tasks(
+        client,
+        project="Web Corporativa",
+        stage="En curso",
+        assignee="Ana",
+        query="portada",
+        limit=10,
+    )
+    args, kwargs = client.last_call("project.task", "search_read")
+    assert args == [
+        [
+            ("project_id", "=", 10),
+            ("stage_id", "=", 2),
+            ("user_ids", "in", [5]),
+            ("name", "ilike", "portada"),
+        ]
+    ]
+    assert kwargs["limit"] == 10
+    assert result[0]["project"] == "Web Corporativa"
+    assert result[0]["stage"] == "En curso"
+    assert result[0]["assignees"] == ["Ana"]
+
+
+def test_list_tasks_etapa_sin_proyecto():
+    client = FakeClient(
+        {("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS
+    )
+    projects.list_tasks(client, stage="En curso")
+    args, _ = client.last_call("project.task", "search_read")
+    assert args == [[("stage_id.name", "ilike", "En curso")]]
+
+    client2 = FakeClient(
+        {("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS
+    )
+    projects.list_tasks(client2, stage="12")
+    args, _ = client2.last_call("project.task", "search_read")
+    assert args == [[("stage_id", "=", 12)]]
+
+
+def test_list_tasks_version_antigua_filtra_por_user_id():
+    client = FakeClient(
+        {
+            ("res.users", "search_read"): [{"id": 5, "name": "Ana", "login": "ana"}],
+            ("project.task", "search_read"): [],
+        },
+        fields=LEGACY_TASK_FIELDS,
+    )
+    projects.list_tasks(client, assignee="Ana")
+    args, _ = client.last_call("project.task", "search_read")
+    assert args == [[("user_id", "in", [5])]]
 
 
 def test_move_task_resuelve_etapa_por_nombre():

@@ -16,8 +16,9 @@ class StubProxy:
 
     instances: dict[str, "StubProxy"] = {}
 
-    def __init__(self, uri, allow_none=False):
+    def __init__(self, uri, allow_none=False, transport=None):
         self.uri = uri
+        self.transport = transport
         self.calls = []
         StubProxy.instances[uri] = self
 
@@ -53,7 +54,18 @@ def test_autentica_una_sola_vez_y_pasa_credenciales(stubbed_client):
     assert len([c for c in common.calls if c[0] == "authenticate"]) == 1
     name, args = obj.calls[0]
     assert name == "execute_kw"
-    assert args[:5] == ("db", 7, "key", "res.partner", "search_read")
+    assert args == ("db", 7, "key", "res.partner", "search_read", [[]], {"limit": 1})
+
+
+def test_execute_sin_args_ni_kwargs_envia_contenedores_vacios(stubbed_client):
+    odoo, common, obj = stubbed_client
+    common.handle_authenticate = lambda *args: 7
+    obj.handle_execute_kw = lambda *args: []
+
+    odoo.execute("res.partner", "read")
+
+    _, args = obj.calls[0]
+    assert args == ("db", 7, "key", "res.partner", "read", [], {})
 
 
 def test_autenticacion_fallida(stubbed_client):

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Servidor MCP local para Odoo: proyectos, tableros kanban y acceso genérico al ORM"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["mcp>=1.2.0"]
+dependencies = ["mcp>=1.9.0"]
 
 [project.scripts]
 odoo-mcp = "odoo_mcp.server:main"
@@ -21,3 +21,4 @@ dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]

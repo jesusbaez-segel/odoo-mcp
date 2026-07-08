@@ -45,6 +45,23 @@ def test_adjust_url_reescribe_localhost_en_docker():
     )
 
 
+def test_adjust_url_reescribe_0_0_0_0_en_docker():
+    assert (
+        adjust_url_for_docker("http://0.0.0.0:8069", in_docker=True)
+        == "http://host.docker.internal:8069"
+    )
+
+
+def test_load_settings_timeout():
+    assert load_settings(FULL_ENV).timeout == 60.0
+    env = dict(FULL_ENV)
+    env["ODOO_TIMEOUT"] = "30"
+    assert load_settings(env).timeout == 30.0
+    env["ODOO_TIMEOUT"] = "abc"
+    with pytest.raises(ConfigError, match="ODOO_TIMEOUT"):
+        load_settings(env)
+
+
 def test_adjust_url_no_toca_otros_hosts_ni_fuera_de_docker():
     assert (
         adjust_url_for_docker("https://odoo.miempresa.com", in_docker=True)

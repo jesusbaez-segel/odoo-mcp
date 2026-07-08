@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import xmlrpc.client
 from typing import Any
 
@@ -20,14 +21,47 @@ def _fault_message(fault: xmlrpc.client.Fault) -> str:
     return f"Odoo: {text or fault.faultCode}"
 
 
+class _TimeoutTransport(xmlrpc.client.Transport):
+    """Sin timeout, una llamada colgada bloquearía la tool para siempre."""
+
+    def __init__(self, timeout: float):
+        super().__init__()
+        self._timeout = timeout
+
+    def make_connection(self, host):
+        connection = super().make_connection(host)
+        connection.timeout = self._timeout
+        return connection
+
+
+class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+    def __init__(self, timeout: float):
+        super().__init__()
+        self._timeout = timeout
+
+    def make_connection(self, host):
+        connection = super().make_connection(host)
+        connection.timeout = self._timeout
+        return connection
+
+
+def _make_proxy(base: str, path: str, timeout: float) -> xmlrpc.client.ServerProxy:
+    transport_cls = _TimeoutSafeTransport if base.startswith("https") else _TimeoutTransport
+    return xmlrpc.client.ServerProxy(
+        f"{base}{path}", allow_none=True, transport=transport_cls(timeout)
+    )
+
+
 class OdooClient:
     def __init__(self, settings: Settings):
         self._settings = settings
         base = settings.url.rstrip("/")
-        self._common = xmlrpc.client.ServerProxy(f"{base}/xmlrpc/2/common", allow_none=True)
-        self._object = xmlrpc.client.ServerProxy(f"{base}/xmlrpc/2/object", allow_none=True)
+        self._common = _make_proxy(base, "/xmlrpc/2/common", settings.timeout)
+        self._object = _make_proxy(base, "/xmlrpc/2/object", settings.timeout)
         self._uid: int | None = None
         self._fields_cache: dict[str, dict[str, dict[str, Any]]] = {}
+        # xmlrpc.client no es thread-safe y las tools async pueden solaparse
+        self._lock = threading.Lock()
 
     @property
     def base_url(self) -> str:
@@ -59,21 +93,22 @@ class OdooClient:
         args: list | None = None,
         kwargs: dict | None = None,
     ) -> Any:
-        uid = self._authenticate()
-        try:
-            return self._object.execute_kw(
-                self._settings.db,
-                uid,
-                self._settings.api_key,
-                model,
-                method,
-                args or [],
-                kwargs or {},
-            )
-        except xmlrpc.client.Fault as fault:
-            raise OdooError(_fault_message(fault)) from fault
-        except (OSError, xmlrpc.client.Error) as exc:
-            raise OdooError(f"Error de conexión con Odoo: {exc}") from exc
+        with self._lock:
+            uid = self._authenticate()
+            try:
+                return self._object.execute_kw(
+                    self._settings.db,
+                    uid,
+                    self._settings.api_key,
+                    model,
+                    method,
+                    args or [],
+                    kwargs or {},
+                )
+            except xmlrpc.client.Fault as fault:
+                raise OdooError(_fault_message(fault)) from fault
+            except (OSError, xmlrpc.client.Error) as exc:
+                raise OdooError(f"Error de conexión con Odoo: {exc}") from exc
 
     def fields_info(self, model: str) -> dict[str, dict[str, Any]]:
         """fields_get cacheado con los atributos mínimos para adaptar el código
