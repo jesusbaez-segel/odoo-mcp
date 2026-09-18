@@ -89,10 +89,22 @@ Dos detalles que el empaquetado obligó a resolver:
   consola de Windows es cp850/cp1252 y rompía los acentos de los mensajes de
   error. El instalador fija además `[Console]::OutputEncoding` al capturarlos.
 
-## El asistente de instalación
+## El asistente de instalación (revisado: un único .exe)
 
-`instalar.bat` (doble clic) lanza `configurar.ps1`, compatible con Windows
-PowerShell 5.1. Cinco pasos:
+Repartir cuatro archivos y explicar «abre instalar.bat, no el .exe» resultó poco
+práctico. El mismo ejecutable es ahora el servidor **y** su instalador: se comparte
+un solo archivo y se abre con doble clic, como cualquier instalador.
+
+`server.py` elige el modo: si `sys.stdin.isatty()` hay una consola detrás (doble
+clic) y arranca el asistente; si es una tubería, lo ha lanzado Claude y arranca el
+servidor MCP. El registro en Claude añade `--mcp` para que el modo servidor sea
+explícito, pero sin argumentos también funciona: los registros antiguos siguen
+valiendo.
+
+El asistente vive en `installer.py`, en Python, dentro del ejecutable. Desaparecen
+`instalar.bat`, `configurar.ps1`, `desinstalar.bat`, `desinstalar.ps1` y `LEEME.txt`.
+Si ya está instalado, el doble clic abre un menú: volver a registrar, reconfigurar,
+comprobar la conexión, desinstalar. Cinco pasos:
 
 1. **Instalar**: copia `odoo-mcp.exe` a `%LOCALAPPDATA%\Programs\odoo-mcp\`.
 2. **Preguntar**: URL de Odoo → autodetección de la base de datos vía
@@ -103,9 +115,13 @@ PowerShell 5.1. Cinco pasos:
    - *Claude Code*: `claude mcp add odoo -s user -- <ruta>\odoo-mcp.exe`. Si el CLI
      no está en el PATH, se escribe `mcpServers.odoo` directamente en
      `%USERPROFILE%\.claude.json`.
-   - *Claude Desktop*: se **fusiona** `mcpServers.odoo` en
-     `%APPDATA%\Claude\claude_desktop_config.json`, con copia `.bak` previa. Nunca
-     se sobrescribe el archivo entero: otros servidores MCP del usuario sobreviven.
+   - *Claude Desktop*: se **fusiona** `mcpServers.odoo` en su configuración, con
+     copia `.bak` previa. Nunca se sobrescribe el archivo entero: otros servidores
+     MCP del usuario sobreviven. Hay **dos ubicaciones posibles** y buscar solo la
+     primera fue un fallo real, detectado al probarlo en una máquina de verdad:
+     - clásica (instalador .exe): `%APPDATA%\Claude\`
+     - Microsoft Store: `%LOCALAPPDATA%\Packages\Claude_<hash>\LocalCache\Roaming\Claude\`
+       El `<hash>` cambia en cada máquina, así que se busca con comodín `Claude_*`.
    - Si un cliente no está instalado, se omite y se informa.
 5. **Verificar**: ejecuta `odoo-mcp.exe --check`. Esto comprueba el ejecutable real
    y la configuración real, no solo que la contraseña sea válida. Al final resume
@@ -122,7 +138,8 @@ value` y una notificación de "Internal Server Error". La sesión sobrevive (el 
 hace `continue`), pero el ruido asusta y ensucia los registros.
 
 `stdio_filter.py` envuelve `sys.stdin.buffer` —lo único que el SDK lee— con un
-filtro que descarta las líneas vacías y normaliza `
+filtro que descarta las líneas vacías y normaliza `
+
 ` a `
 `. Colapsar saltos
 consecutivos es seguro: en JSON-RPC los mensajes van delimitados por saltos y un
@@ -145,8 +162,12 @@ salto dentro de una cadena JSON siempre viaja escapado, nunca como byte 0x0A.
   búsqueda de rutas. Se eliminan los cuatro tests de `adjust_url_for_docker`.
 - `tests/test_server.py`: `check_connection` en éxito y en fallo de autenticación,
   usando `FakeClient`.
-- El PowerShell no lleva prueba automatizada. Verificación manual: instalar en una
-  sesión limpia, comprobar los dos JSON y pedir a Claude «muéstrame mis proyectos».
+- `tests/test_installer.py`: detección de las dos ubicaciones de Claude Desktop,
+  fusión y borrado del JSON (conserva otros MCP, respeta uno corrupto, deja `.bak`,
+  sin BOM), y el asistente completo con Odoo simulado, incluyendo que una credencial
+  rechazada no deje nada escrito.
+- `getpass` lee del dispositivo de consola, no de stdin: sin consola se cuelga para
+  siempre. Se cae a `input()` cuando no hay tty, con prueba propia.
 
 ## Documentación
 

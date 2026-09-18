@@ -52,5 +52,5 @@ if ($LASTEXITCODE -ne 0) {
 $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
 Write-Host ""
 Write-Host "  Listo: dist\odoo-mcp.exe ($mb MB) - $salida" -ForegroundColor Green
-Write-Host "  Para repartirlo, comprime en un ZIP:" -ForegroundColor Green
-Write-Host "     dist\odoo-mcp.exe  +  instalar.bat  +  configurar.ps1  +  desinstalar.bat  +  LEEME.txt"
+Write-Host "  Es un unico archivo: doble clic instala, y Claude lo usa como servidor." -ForegroundColor Green
+Write-Host "  Para repartirlo, manda solo dist\odoo-mcp.exe" -ForegroundColor Green

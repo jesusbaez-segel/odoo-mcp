@@ -266,11 +266,18 @@ async def call_method(
 
 USAGE = """odoo-mcp - servidor MCP de Odoo para Claude
 
-Sin argumentos arranca el servidor por stdio (es lo que hace Claude).
+El mismo archivo es el servidor y su instalador. Sin argumentos decide segun
+como se haya arrancado: con doble clic abre el asistente; lanzado por Claude
+(con la entrada conectada a una tuberia) arranca el servidor MCP.
 
-  --check      comprueba la conexion con Odoo y sale
-  --version    muestra la version
-  --help       muestra esta ayuda
+  --mcp           arranca el servidor MCP por stdio (lo usa Claude)
+  --instalar      abre el asistente de instalacion
+  --registrar     vuelve a registrarlo en Claude sin volver a pedir los datos
+  --menu          abre el menu (instalar, registrar, comprobar, desinstalar)
+  --desinstalar   quita el servidor de Claude y borra la instalacion
+  --check         comprueba la conexion con Odoo y sale
+  --version       muestra la version
+  --help          muestra esta ayuda
 """
 
 
@@ -290,7 +297,7 @@ def check_connection(client) -> str:
     )
 
 
-def _run_check() -> int:
+def comprobar_conexion_cli() -> int:
     try:
         print(check_connection(get_client()))
     except (ConfigError, OdooError) as exc:
@@ -313,13 +320,46 @@ def _force_utf8_output() -> None:
             pass
 
 
+def _arrancado_por_una_persona() -> bool:
+    """Doble clic desde el explorador: hay una consola de verdad detrás de la
+    entrada estandar. Claude, en cambio, conecta stdin a una tuberia."""
+    try:
+        return bool(sys.stdin is not None and sys.stdin.isatty())
+    except (AttributeError, ValueError, OSError):
+        return False
+
+
+def _servidor_mcp() -> int:
+    stdio_filter.install()
+    mcp.run()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else list(argv)
     if args:
-        _force_utf8_output()
         flag = args[0]
+        if flag in ("--mcp", "--servidor"):
+            return _servidor_mcp()
+        if flag in ("--instalar", "--install"):
+            from . import installer
+
+            return installer.ejecutar("instalar")
+        if flag in ("--desinstalar", "--uninstall"):
+            from . import installer
+
+            return installer.ejecutar("desinstalar")
+        if flag in ("--registrar", "--register"):
+            from . import installer
+
+            return installer.ejecutar("registrar")
+        if flag == "--menu":
+            from . import installer
+
+            return installer.ejecutar("menu")
+        _force_utf8_output()
         if flag in ("--check", "-c"):
-            return _run_check()
+            return comprobar_conexion_cli()
         if flag in ("--version", "-V"):
             print(f"odoo-mcp {__version__}")
             return 0
@@ -329,9 +369,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Argumento no reconocido: {flag}", file=sys.stderr)
         print(USAGE, file=sys.stderr)
         return 2
-    stdio_filter.install()
-    mcp.run()
-    return 0
+    if _arrancado_por_una_persona():
+        from . import installer
+
+        return installer.ejecutar()
+    return _servidor_mcp()
 
 
 if __name__ == "__main__":

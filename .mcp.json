@@ -2,7 +2,7 @@
   "mcpServers": {
     "odoo": {
       "command": "uv",
-      "args": ["run", "odoo-mcp"]
+      "args": ["run", "odoo-mcp", "--mcp"]
     }
   }
 }

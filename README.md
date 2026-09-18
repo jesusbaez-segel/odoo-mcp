@@ -10,53 +10,49 @@ en tiempo de ejecución). Nota: Odoo 13 no tiene API keys; usa la contraseña.
 
 ## Instalación (Windows)
 
-**Requisitos: ninguno.** No hace falta Docker, ni Python, ni Node. Solo tener
-Claude Code o Claude Desktop instalado.
+**Un solo archivo, y ningún requisito.** No hace falta Docker, ni Python, ni Node.
+Solo tener Claude Code o Claude Desktop.
 
-1. Descomprime el ZIP en una carpeta.
-2. Doble clic en **`instalar.bat`**.
-3. Responde tres preguntas: URL de tu Odoo, tu email y tu contraseña.
+1. Doble clic en **`odoo-mcp.exe`**.
+2. Responde tres preguntas: URL de tu Odoo, tu email y tu contraseña (o API key).
 
-El asistente instala el servidor, detecta solo el nombre de la base de datos,
-verifica el acceso, guarda tus datos y **registra el servidor en Claude Code y en
-Claude Desktop a la vez**. Al terminar, abre Claude y pide:
+Ya está. El asistente se instala solo, detecta el nombre de la base de datos,
+verifica el acceso contra Odoo, guarda tus datos y **registra el servidor en Claude
+Code y en Claude Desktop a la vez**. Después abre Claude y pide:
 *«muéstrame mis proyectos de Odoo»*.
 
-Dónde deja las cosas:
+El mismo archivo es el instalador y el servidor: cuando lo abres tú con doble clic
+(hay una consola detrás) hace de asistente; cuando lo lanza Claude (con la entrada
+conectada a una tubería) hace de servidor MCP.
+
+Si vuelves a abrirlo cuando ya está instalado, sale un menú: reconfigurar,
+comprobar la conexión, desinstalar o salir.
+
+### Cómo pasárselo a otra persona
+
+Mándale **`odoo-mcp.exe`** y nada más (~20 MB, por Drive, USB o lo que sea). Doble
+clic y el asistente le pide **sus** datos de Odoo.
+
+⚠️ No compartas tu `%APPDATA%\odoo-mcp\config.env`: contiene tu contraseña.
+
+### Dónde deja las cosas
 
 | Qué | Dónde |
 |---|---|
 | El servidor | `%LOCALAPPDATA%\Programs\odoo-mcp\odoo-mcp.exe` |
 | Tus datos de Odoo | `%APPDATA%\odoo-mcp\config.env` (solo tu usuario puede leerlo) |
 | Registro en Claude Code | `%USERPROFILE%\.claude.json` |
-| Registro en Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Registro en Claude Desktop (clásico) | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Registro en Claude Desktop (Microsoft Store) | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
 
-Si ya tenías otros servidores MCP configurados, se conservan: el asistente
-**fusiona** su entrada en esos archivos en vez de sobrescribirlos, y deja una copia
-`.bak` antes de tocarlos.
-
-### Cómo pasárselo a otra persona
-
-Comprime y comparte estos cuatro archivos:
-
-1. `odoo-mcp.exe` (el servidor, ~20 MB — lo genera `build.ps1` en `dist\`)
-2. `instalar.bat`
-3. `configurar.ps1`
-4. `desinstalar.bat` y `desinstalar.ps1` (opcional pero recomendable)
-
-La otra persona los pone en una carpeta, hace doble clic en `instalar.bat` y el
-asistente le pide **sus** datos de Odoo.
-
-⚠️ No compartas tu `%APPDATA%\odoo-mcp\config.env`: contiene tu contraseña.
-
-### Desinstalar
-
-Doble clic en `desinstalar.bat`: quita el servidor de ambos Claude, borra el
-ejecutable y pregunta si borrar también tus credenciales.
+Claude Desktop guarda su configuración en un sitio u otro según cómo se haya
+instalado; el asistente busca en los dos. Si ya tenías otros servidores MCP, se
+conservan: **fusiona** su entrada en esos archivos en vez de sobrescribirlos, y
+deja una copia `.bak` antes de tocarlos.
 
 ### Si algo falla
 
-Ejecuta esto en una terminal para ver qué ocurre:
+Abre una ventana de comandos y ejecuta:
 
 ```
 %LOCALAPPDATA%\Programs\odoo-mcp\odoo-mcp.exe --check
@@ -85,13 +81,24 @@ Ejemplos de peticiones a Claude:
 - «Mueve la tarea 214 a En curso y comenta que ya está desplegada»
 - «¿Cuántas facturas quedan por validar? Valídalas»
 
+## Argumentos del ejecutable
+
+| Argumento | Qué hace |
+|---|---|
+| *(ninguno)* | Decide solo: doble clic → asistente; lanzado por Claude → servidor |
+| `--mcp` | Fuerza el servidor MCP por stdio (es lo que se registra en Claude) |
+| `--instalar` | Fuerza el asistente de instalación |
+| `--desinstalar` | Lo quita de Claude y borra la instalación |
+| `--check` | Comprueba la conexión con Odoo y sale |
+| `--version`, `--help` | Lo que parece |
+
 ## Desarrollo
 
 ```bash
 uv sync                  # instala dependencias
 uv run pytest            # ejecuta las pruebas
 uv run odoo-mcp --check  # comprueba la conexión con Odoo
-uv run odoo-mcp          # arranca el servidor por stdio
+uv run odoo-mcp --mcp    # arranca el servidor por stdio
 ```
 
 Copia `.env.example` a `.env` con tus datos: en desarrollo el servidor lo lee del
