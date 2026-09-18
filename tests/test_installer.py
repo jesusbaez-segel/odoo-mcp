@@ -346,3 +346,36 @@ def test_reregistrar_no_pide_datos_ni_toca_la_configuracion(tmp_path, monkeypatc
     assert "odoo" in json.loads(json_desktop.read_text(encoding="utf-8"))["mcpServers"]
     assert config_env.read_text(encoding="utf-8") == "ODOO_URL=https://x.com\n"
     assert "Claude Desktop" in capsys.readouterr().out
+
+
+def test_no_escribe_en_claude_desktop_si_esta_abierto(tmp_path, monkeypatch, capsys):
+    """Con la app abierta, ella reescribe su config y borraria nuestra entrada."""
+    json_desktop = tmp_path / "claude_desktop_config.json"
+    json_desktop.write_text('{"preferences":{}}', encoding="utf-8")
+
+    monkeypatch.setattr(installer, "config_claude_code", lambda: tmp_path / "no-hay.json")
+    monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [json_desktop])
+    monkeypatch.setattr(installer, "claude_desktop_abierto", lambda: True)
+    monkeypatch.setattr(installer, "preguntar", lambda *a, **k: "")
+
+    configurados = installer.registrar(tmp_path / "odoo-mcp.exe")
+
+    assert "Claude Desktop" not in configurados
+    assert json_desktop.read_text(encoding="utf-8") == '{"preferences":{}}'
+    assert "sigue abierto" in capsys.readouterr().out
+
+
+def test_escribe_cuando_claude_desktop_esta_cerrado(tmp_path, monkeypatch):
+    json_desktop = tmp_path / "claude_desktop_config.json"
+    json_desktop.write_text('{"preferences":{}}', encoding="utf-8")
+
+    monkeypatch.setattr(installer, "config_claude_code", lambda: tmp_path / "no-hay.json")
+    monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [json_desktop])
+    monkeypatch.setattr(installer, "claude_desktop_abierto", lambda: False)
+
+    configurados = installer.registrar(tmp_path / "odoo-mcp.exe")
+
+    assert "Claude Desktop" in configurados
+    datos = json.loads(json_desktop.read_text(encoding="utf-8"))
+    assert "odoo" in datos["mcpServers"]
+    assert datos["preferences"] == {}  # no se pierden sus preferencias

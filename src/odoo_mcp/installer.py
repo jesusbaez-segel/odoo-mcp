@@ -346,6 +346,46 @@ def instalar_ejecutable() -> Path:
 # --- Registro en los clientes -------------------------------------------------
 
 
+def claude_desktop_abierto() -> bool:
+    """Claude Desktop reescribe su configuración cuando guarda preferencias, así
+    que lo que escribamos con la app abierta se pierde. Hay que distinguirlo de
+    Claude Code, que en Windows también se llama claude.exe."""
+    if os.name != "nt":
+        return False
+    guion = (
+        "$n=0; Get-Process -Name Claude -ErrorAction SilentlyContinue | ForEach-Object {"
+        " try { $r=$_.Path } catch { $r='' };"
+        " if ($r -like '*WindowsApps*' -or $r -like '*\Claudepp\*'"
+        " -or $r -like '*AnthropicClaude*') { $n++ } }; $n"
+    )
+    try:
+        resultado = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", guion],
+            capture_output=True,
+            timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return int(resultado.stdout.decode(errors="replace").strip() or 0) > 0
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False  # ante la duda, no estorbar
+
+
+def esperar_a_que_cierren_claude_desktop(intentos: int = 3) -> bool:
+    """Devuelve True si al final está cerrado."""
+    for numero in range(intentos):
+        if not claude_desktop_abierto():
+            return True
+        print()
+        aviso("      Claude Desktop está abierto.")
+        aviso("      Reescribe su configuración al guardar, así que borraría esto.")
+        aviso("      Ciérralo del todo: clic derecho en su icono junto al reloj -> Salir.")
+        aviso("      (cerrar solo la ventana no basta)")
+        if numero == intentos - 1:
+            break
+        preguntar("Cuando lo hayas cerrado, pulsa Enter")
+    return not claude_desktop_abierto()
+
+
 def registrar(ejecutable: Path) -> list[str]:
     """Registra el servidor en todos los Claude que haya. Devuelve cuáles."""
     configurados: list[str] = []
@@ -366,6 +406,10 @@ def registrar(ejecutable: Path) -> list[str]:
     rutas_desktop = configs_claude_desktop()
     if not rutas_desktop:
         print(f"      Claude Desktop: {GRIS}no está instalado, lo omito{FIN}")
+    elif not esperar_a_que_cierren_claude_desktop():
+        aviso("      Claude Desktop sigue abierto: no lo configuro para no perder el cambio.")
+        aviso("      Ciérralo y vuelve a abrir este programa (opción 1).")
+        return configurados
     for ruta in rutas_desktop:
         resultado = fusionar_mcp(ruta, ejecutable)
         if resultado == "ok":
