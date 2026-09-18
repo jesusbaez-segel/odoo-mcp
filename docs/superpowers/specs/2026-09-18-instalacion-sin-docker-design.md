@@ -114,6 +114,20 @@ PowerShell 5.1. Cinco pasos:
 `desinstalar.bat` / `desinstalar.ps1`: quita el servidor de ambos clientes, borra
 `%LOCALAPPDATA%\Programs\odoo-mcp` y pregunta si borrar también las credenciales.
 
+## Ruido de stdin (añadido tras la primera prueba real)
+
+El transporte stdio del SDK valida como JSON *cada* línea que lee, incluidas las
+vacías. Una línea en blanco del cliente genera `Invalid JSON: EOF while parsing a
+value` y una notificación de "Internal Server Error". La sesión sobrevive (el SDK
+hace `continue`), pero el ruido asusta y ensucia los registros.
+
+`stdio_filter.py` envuelve `sys.stdin.buffer` —lo único que el SDK lee— con un
+filtro que descarta las líneas vacías y normaliza `
+` a `
+`. Colapsar saltos
+consecutivos es seguro: en JSON-RPC los mensajes van delimitados por saltos y un
+salto dentro de una cadena JSON siempre viaja escapado, nunca como byte 0x0A.
+
 ## Manejo de errores
 
 - Sin `odoo-mcp.exe` junto al script: mensaje claro y salida.

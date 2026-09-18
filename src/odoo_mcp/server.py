@@ -14,7 +14,7 @@ from typing import Any
 from anyio import to_thread
 from mcp.server.fastmcp import FastMCP
 
-from . import __version__, generic, projects
+from . import __version__, generic, projects, stdio_filter
 from .client import OdooClient, OdooError
 from .config import ConfigError, load_settings
 
@@ -329,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Argumento no reconocido: {flag}", file=sys.stderr)
         print(USAGE, file=sys.stderr)
         return 2
+    stdio_filter.install()
     mcp.run()
     return 0
 
