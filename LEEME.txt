@@ -2,20 +2,20 @@ MCP de Odoo para Claude - Instalacion
 =====================================
 
 Que necesitas tener instalado antes:
-  - Docker Desktop  (gratis, en docker.com)
   - Claude Code o Claude Desktop  (claude.com)
+  Y nada mas. No hace falta Docker, ni Python, ni Node.
 
 Pasos:
   1. Descomprime este ZIP en una carpeta (por ejemplo Documentos\odoo-mcp).
-  2. Abre Docker Desktop y espera a que termine de arrancar.
-  3. Doble clic en  instalar.bat
-  4. Responde lo que te pregunta:
+  2. Doble clic en  instalar.bat
+  3. Responde lo que te pregunta:
        - URL de tu Odoo   (ej.: https://odoo.segel.com.py)
        - Tu email de inicio de sesion en Odoo
        - Tu contrasena de Odoo (no se muestra al escribir)
      El asistente verifica el acceso, guarda la configuracion en tu maquina
-     y registra el servidor en Claude automaticamente.
-  5. Abre (o reinicia) Claude y pide:  "muestrame mis proyectos de Odoo"
+     y lo registra en Claude Code y en Claude Desktop automaticamente.
+  4. Si usas Claude Desktop, cierralo del todo (icono junto al reloj) y
+     vuelve a abrirlo. Luego pide:  "muestrame mis proyectos de Odoo"
 
 Que puedes pedirle a Claude despues:
   - "muestrame el tablero del proyecto X"
@@ -24,5 +24,13 @@ Que puedes pedirle a Claude despues:
   - "comenta en la tarea N que ..."
   y cualquier otra cosa de Odoo (clientes, ventas, facturas...).
 
-Tu contrasena queda guardada SOLO en tu maquina (archivo .env de esta
-carpeta). No compartas ese archivo con nadie.
+Si algo no funciona:
+  Abre una ventana de comandos y ejecuta esta linea; te dira el error exacto:
+     %LOCALAPPDATA%\Programs\odoo-mcp\odoo-mcp.exe --check
+
+Para quitarlo:
+  Doble clic en  desinstalar.bat
+
+Tu contrasena queda guardada SOLO en tu maquina, en:
+  %APPDATA%\odoo-mcp\config.env
+No compartas ese archivo con nadie.

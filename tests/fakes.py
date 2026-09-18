@@ -9,20 +9,28 @@ class FakeClient:
     """Doble del OdooClient: respuestas programadas por (modelo, método)."""
 
     base_url = "http://odoo.test"
+    database = "test_db"
 
     def __init__(
         self,
         responses: dict[tuple[str, str], Any] | None = None,
         fields: dict[str, dict[str, dict]] | None = None,
         version_major: int = 17,
+        uid: int | Exception = 2,
     ):
         self.calls: list[tuple[str, str, list, dict]] = []
         self.responses = dict(responses or {})
         self.fields = dict(fields or {})
         self.version_major = version_major
+        self._uid = uid
 
     def server_major(self) -> int:
         return self.version_major
+
+    def uid(self) -> int:
+        if isinstance(self._uid, Exception):
+            raise self._uid
+        return self._uid
 
     def fields_info(self, model: str) -> dict[str, dict]:
         try:

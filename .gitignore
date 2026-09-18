@@ -1,8 +1,11 @@
 .env
 .venv/
 *.tar.gz
+*.exe
 __pycache__/
 *.pyc
 .pytest_cache/
+build/
 dist/
+*.spec
 .claude/settings.local.json

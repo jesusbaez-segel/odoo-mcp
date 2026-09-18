@@ -7,15 +7,16 @@ llamada a Odoo está en vuelo.
 
 from __future__ import annotations
 
+import sys
 from functools import partial
 from typing import Any
 
 from anyio import to_thread
 from mcp.server.fastmcp import FastMCP
 
-from . import generic, projects
-from .client import OdooClient
-from .config import load_settings
+from . import __version__, generic, projects
+from .client import OdooClient, OdooError
+from .config import ConfigError, load_settings
 
 mcp = FastMCP(
     "odoo",
@@ -263,9 +264,74 @@ async def call_method(
     return await _run(generic.call_method, get_client(), model, method, args=args, kwargs=kwargs)
 
 
-def main() -> None:
+USAGE = """odoo-mcp - servidor MCP de Odoo para Claude
+
+Sin argumentos arranca el servidor por stdio (es lo que hace Claude).
+
+  --check      comprueba la conexion con Odoo y sale
+  --version    muestra la version
+  --help       muestra esta ayuda
+"""
+
+
+def check_connection(client) -> str:
+    """Autentica contra Odoo y describe con quien se ha conectado.
+
+    Separada de main() para poder probarla con el doble de tests/fakes.py.
+    """
+    uid = client.uid()
+    users = client.execute("res.users", "read", [[uid], ["name", "login"]])
+    user = users[0] if users else {}
+    version = client.server_major()
+    version_text = f"Odoo {version}" if version else "version desconocida"
+    return (
+        f"OK: conectado a {client.base_url} (base {client.database}) como "
+        f"{user.get('name', '?')} <{user.get('login', '?')}>, {version_text}."
+    )
+
+
+def _run_check() -> int:
+    try:
+        print(check_connection(get_client()))
+    except (ConfigError, OdooError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # una traza cruda no ayuda a quien instala
+        print(f"ERROR inesperado: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _force_utf8_output() -> None:
+    """La consola de Windows suele ser cp1252/cp850 y destroza los acentos de los
+    mensajes de error. Solo afecta a la salida de la CLI: el servidor MCP escribe
+    por sys.stdout.buffer y no pasa por aqui."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else list(argv)
+    if args:
+        _force_utf8_output()
+        flag = args[0]
+        if flag in ("--check", "-c"):
+            return _run_check()
+        if flag in ("--version", "-V"):
+            print(f"odoo-mcp {__version__}")
+            return 0
+        if flag in ("--help", "-h"):
+            print(USAGE)
+            return 0
+        print(f"Argumento no reconocido: {flag}", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
+        return 2
     mcp.run()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

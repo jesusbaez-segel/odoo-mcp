@@ -68,6 +68,15 @@ class OdooClient:
     def base_url(self) -> str:
         return self._settings.url.rstrip("/")
 
+    @property
+    def database(self) -> str:
+        return self._settings.db
+
+    def uid(self) -> int:
+        """Id del usuario autenticado; autentica en la primera llamada."""
+        with self._lock:
+            return self._authenticate()
+
     def _authenticate(self) -> int:
         if self._uid is None:
             try:
