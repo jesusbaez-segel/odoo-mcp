@@ -22,7 +22,7 @@ Sin instalar Docker, ni Node, ni Python. Y que al terminar queden configurados
 | Decisión | Elección | Motivo |
 |---|---|---|
 | Runtime | Python empaquetado con PyInstaller `--onefile` | El usuario final no instala nada. No hay que reescribir las ~2 150 líneas ya probadas. |
-| Plataformas | Solo Windows | Es el parque real del equipo; PyInstaller solo compila para el SO anfitrión y así no hace falta CI. |
+| Plataformas | Windows y macOS (Apple Silicon e Intel) — *ampliado el 2026-09-22* | Empezó siendo solo Windows. PyInstaller solo compila para el SO anfitrión, así que los binarios de Mac los construye GitHub Actions en runners de Apple. |
 | Credenciales | Archivo único `%APPDATA%\odoo-mcp\config.env` | Una sola fuente para los dos clientes; el registro MCP queda sin `args` ni `env`; cambiar la contraseña no toca ningún JSON. |
 | Ubicación | `%LOCALAPPDATA%\Programs\odoo-mcp\` | Ruta estable: si borra la carpeta de Descargas, Claude sigue encontrando el servidor. |
 
@@ -174,3 +174,43 @@ salto dentro de una cadena JSON siempre viaja escapado, nunca como byte 0x0A.
 `README.md` y `LEEME.txt` sin Docker. Para compartir el MCP bastan tres archivos:
 `odoo-mcp.exe`, `instalar.bat`, `configurar.ps1`. Requisito previo para quien lo
 recibe: ninguno más allá de tener Claude.
+
+## macOS y construcción en GitHub Actions (añadido el 2026-09-22)
+
+**Por qué CI y no un Mac**: PyInstaller no cruza plataformas. Sin un Mac a mano, la
+única forma de obtener el binario es compilarlo en un runner de Apple. El workflow
+`.github/workflows/build.yml` construye los tres a la vez: Windows
+(`windows-latest`), Mac Apple Silicon (`macos-14`, arm64) y Mac Intel (`macos-13`,
+x86_64). Se lanza a mano o al publicar una etiqueta `vX.Y.Z`, que además adjunta
+los ejecutables a la Release.
+
+**Dos binarios nativos en vez de uno para Intel bajo Rosetta**: cuesta lo mismo en
+CI y le ahorra al usuario de Apple Silicon un diálogo de instalación de Rosetta
+encima del de Gatekeeper.
+
+**Rutas de macOS**: ejecutable y `config.env` en `~/Library/Application
+Support/odoo-mcp/`; Claude Desktop en `~/Library/Application Support/Claude/`.
+Antes `configs_claude_desktop()` solo miraba `%APPDATA%`/`%LOCALAPPDATA%` y en un
+Mac devolvía vacío: Claude Desktop nunca se habría configurado.
+
+**Gatekeeper**: el archivo se reparte como `.command` (Finder lo abre en Terminal).
+Sin firma ni notarización, la primera apertura exige *clic derecho → Abrir*. El
+asistente quita `com.apple.quarantine` del binario copiado: el atributo se hereda
+y, sin eso, Claude no podría arrancar el servidor aunque el usuario ya hubiera
+autorizado el original. Firmar y notarizar (Apple Developer, 99 USD/año) es la
+única forma de eliminar ese paso; queda fuera de alcance.
+
+**Cómo se da por bueno un binario que nadie ha ejecutado a mano**:
+`packaging/smoke_test.py` corre en cada runner contra el binario recién
+compilado, en un HOME/APPDATA temporal: arranque, protocolo MCP por stdio,
+asistente con Odoo inalcanzable (debe pararse sin escribir nada), `--registrar` en
+las rutas de la plataforma y `--check`. Lo que CI no cubre es lo gráfico: el doble
+clic en Finder y el diálogo de Gatekeeper, que son comportamiento de macOS.
+
+**Detalles que solo salieron al escribir las pruebas**: las comprobaciones de
+plataforma usan `sys.platform` y no `os.name`, porque `pathlib` usa `os.name`
+para elegir el tipo de ruta y simularlo rompía a pytest entero; `.gitattributes`
+fuerza LF en los `.sh`, porque con CRLF macOS falla con *bad interpreter* al leer
+el shebang; y el patrón de detección de Windows llevaba un carácter BEL en lugar
+de `` por no ser cadena literal, cubierto ahora por una prueba de regresión.
+
