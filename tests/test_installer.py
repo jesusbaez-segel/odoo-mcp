@@ -18,6 +18,16 @@ from odoo_mcp.installer import (
 EXE = Path(r"C:\Users\x\AppData\Local\Programs\odoo-mcp\odoo-mcp.exe")
 
 
+@pytest.fixture
+def windows(monkeypatch):
+    """Las rutas de Claude Desktop dependen de la plataforma: en macOS el codigo
+    ignora APPDATA (correctamente) y estos tests fallarian alli, como paso en el
+    runner de GitHub. Se simula win32, igual que test_macos.py simula darwin.
+    No se toca os.name: pathlib lo usa para elegir el tipo de ruta y romperia
+    a pytest entero."""
+    monkeypatch.setattr(installer.sys, "platform", "win32")
+
+
 # --- URL y bases de datos -----------------------------------------------------
 
 
@@ -42,7 +52,7 @@ def test_parsear_bases():
 # --- Deteccion de Claude Desktop ----------------------------------------------
 
 
-def test_encuentra_claude_desktop_clasico(tmp_path, monkeypatch):
+def test_encuentra_claude_desktop_clasico(windows, tmp_path, monkeypatch):
     (tmp_path / "Claude").mkdir()
     monkeypatch.setenv("APPDATA", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "vacio"))
@@ -53,7 +63,7 @@ def test_encuentra_claude_desktop_clasico(tmp_path, monkeypatch):
     assert rutas[0].parent == tmp_path / "Claude"
 
 
-def test_encuentra_claude_desktop_de_la_microsoft_store(tmp_path, monkeypatch):
+def test_encuentra_claude_desktop_de_la_microsoft_store(windows, tmp_path, monkeypatch):
     """La version de la Store virtualiza el AppData dentro del paquete y el hash
     del nombre cambia en cada maquina: hay que dar con ella por comodin."""
     paquete = tmp_path / "Packages" / "Claude_pzs8sxrjxfjjc" / "LocalCache" / "Roaming" / "Claude"
@@ -67,7 +77,7 @@ def test_encuentra_claude_desktop_de_la_microsoft_store(tmp_path, monkeypatch):
     assert rutas[0] == paquete / "claude_desktop_config.json"
 
 
-def test_encuentra_las_dos_instalaciones_a_la_vez(tmp_path, monkeypatch):
+def test_encuentra_las_dos_instalaciones_a_la_vez(windows, tmp_path, monkeypatch):
     roaming = tmp_path / "roaming"
     (roaming / "Claude").mkdir(parents=True)
     local = tmp_path / "local"
@@ -78,13 +88,13 @@ def test_encuentra_las_dos_instalaciones_a_la_vez(tmp_path, monkeypatch):
     assert len(configs_claude_desktop()) == 2
 
 
-def test_sin_claude_desktop_no_devuelve_nada(tmp_path, monkeypatch):
+def test_sin_claude_desktop_no_devuelve_nada(windows, tmp_path, monkeypatch):
     monkeypatch.setenv("APPDATA", str(tmp_path / "a"))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "b"))
     assert configs_claude_desktop() == []
 
 
-def test_ignora_carpetas_que_no_son_de_claude(tmp_path, monkeypatch):
+def test_ignora_carpetas_que_no_son_de_claude(windows, tmp_path, monkeypatch):
     (tmp_path / "Packages" / "Cursor_xyz" / "LocalCache" / "Roaming" / "Claude").mkdir(parents=True)
     monkeypatch.setenv("APPDATA", str(tmp_path / "a"))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))

@@ -143,8 +143,9 @@ def test_orden_de_busqueda(tmp_path):
     assert paths[-1].name == ".env"
 
 
-def test_user_config_path_usa_appdata(monkeypatch, tmp_path):
+def test_user_config_path_usa_appdata_en_windows(monkeypatch, tmp_path):
+    from odoo_mcp import config
+
+    monkeypatch.setattr(config.sys, "platform", "win32")
     monkeypatch.setenv("APPDATA", str(tmp_path))
-    path = user_config_path()
-    assert path.parent.name == "odoo-mcp"
-    assert path.name == "config.env"
+    assert user_config_path() == tmp_path / "odoo-mcp" / "config.env"
