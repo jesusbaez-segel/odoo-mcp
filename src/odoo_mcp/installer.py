@@ -18,8 +18,6 @@ from pathlib import Path
 from .client import OdooClient, OdooError
 from .config import Settings, user_config_path
 
-NOMBRE_EXE = "odoo-mcp.exe"
-CARPETA_INSTALACION = "Programs/odoo-mcp"
 ARG_SERVIDOR = "--mcp"
 
 VERDE, AMARILLO, ROJO, CIAN, GRIS, FIN = (
@@ -42,7 +40,7 @@ class InstallerError(Exception):
 def preparar_consola() -> None:
     """La consola de Windows es cp850/cp1252 y rompe los acentos; y sin modo VT
     los colores saldrían como basura."""
-    if os.name != "nt":
+    if sys.platform != "win32":
         return
     try:
         import ctypes
@@ -92,10 +90,23 @@ def pausa(texto: str = "Pulsa Enter para salir") -> None:
 # --- Rutas --------------------------------------------------------------------
 
 
-def destino_ejecutable() -> Path:
+def nombre_ejecutable() -> str:
+    return "odoo-mcp.exe" if sys.platform == "win32" else "odoo-mcp"
+
+
+def carpeta_instalacion() -> Path:
+    """Sitio estable para el ejecutable: si borran la carpeta de Descargas, lo
+    que quedó registrado en Claude tiene que seguir existiendo."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "odoo-mcp"
     base = os.environ.get("LOCALAPPDATA")
-    raiz = Path(base) if base else Path.home() / ".local"
-    return raiz / CARPETA_INSTALACION / NOMBRE_EXE
+    if base:
+        return Path(base) / "Programs" / "odoo-mcp"
+    return Path.home() / ".local" / "share" / "odoo-mcp"
+
+
+def destino_ejecutable() -> Path:
+    return carpeta_instalacion() / nombre_ejecutable()
 
 
 def config_claude_code() -> Path:
@@ -105,24 +116,28 @@ def config_claude_code() -> Path:
 def configs_claude_desktop() -> list[Path]:
     """Rutas de configuración de Claude Desktop presentes en la máquina.
 
-    Hay dos instalaciones posibles y la gente tiene una u otra:
+    En macOS solo hay un sitio: ~/Library/Application Support/Claude.
+    En Windows hay dos instalaciones posibles y la gente tiene una u otra:
     - la clásica (instalador .exe), en %APPDATA%\\Claude
     - la de la Microsoft Store, con el AppData virtualizado dentro del paquete:
       %LOCALAPPDATA%\\Packages\\Claude_<hash>\\LocalCache\\Roaming\\Claude
       El <hash> cambia según el editor, por eso se busca con comodín.
     """
     carpetas: list[Path] = []
-    appdata = os.environ.get("APPDATA")
-    if appdata:
-        carpetas.append(Path(appdata) / "Claude")
-    local = os.environ.get("LOCALAPPDATA")
-    if local:
-        paquetes = Path(local) / "Packages"
-        if paquetes.is_dir():
-            try:
-                carpetas.extend(sorted(paquetes.glob("Claude_*/LocalCache/Roaming/Claude")))
-            except OSError:
-                pass
+    if sys.platform == "darwin":
+        carpetas.append(Path.home() / "Library" / "Application Support" / "Claude")
+    else:
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            carpetas.append(Path(appdata) / "Claude")
+        local = os.environ.get("LOCALAPPDATA")
+        if local:
+            paquetes = Path(local) / "Packages"
+            if paquetes.is_dir():
+                try:
+                    carpetas.extend(sorted(paquetes.glob("Claude_*/LocalCache/Roaming/Claude")))
+                except OSError:
+                    pass
     return [c / "claude_desktop_config.json" for c in carpetas if c.is_dir()]
 
 
@@ -237,7 +252,7 @@ def escribir_config(ruta: Path, url: str, db: str, usuario: str, clave: str) -> 
 
 def restringir_permisos(ruta: Path) -> bool:
     """Solo el usuario actual puede leer el archivo: contiene la contraseña."""
-    if os.name != "nt":
+    if sys.platform != "win32":
         try:
             ruta.chmod(0o600)
             return True
@@ -319,14 +334,32 @@ def quitar_mcp(ruta_json: Path) -> bool:
         return False
 
 
+def quitar_cuarentena(ruta: Path) -> bool:
+    """macOS marca con com.apple.quarantine todo lo que llega de internet y
+    bloquea su ejecución. El atributo se hereda al copiar, así que Claude no
+    podría arrancar el servidor aunque el usuario ya hubiera autorizado el
+    original. Si no había cuarentena, xattr da error y se ignora."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        hecho = subprocess.run(
+            ["xattr", "-dr", "com.apple.quarantine", str(ruta)],
+            capture_output=True,
+            timeout=20,
+        )
+        return hecho.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def instalar_ejecutable() -> Path:
     """Copia el .exe a una carpeta fija: si borran la carpeta de Descargas, el
     servidor registrado en Claude tiene que seguir existiendo."""
     destino = destino_ejecutable()
     if not getattr(sys, "frozen", False):
         raise InstallerError(
-            "El asistente solo funciona desde odoo-mcp.exe. En desarrollo usa "
-            "'uv run odoo-mcp --check'."
+            f"El asistente solo funciona desde el ejecutable ({nombre_ejecutable()}). "
+            "En desarrollo usa 'uv run odoo-mcp --check'."
         )
     origen = Path(sys.executable).resolve()
     if origen == destino.resolve():
@@ -334,6 +367,9 @@ def instalar_ejecutable() -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
     try:
         shutil.copy2(origen, destino)
+        if sys.platform != "win32":
+            destino.chmod(0o755)
+            quitar_cuarentena(destino)
     except (OSError, shutil.Error) as exc:
         if destino.exists():
             aviso(f"      No pude actualizar el ejecutable ({exc}).")
@@ -346,21 +382,34 @@ def instalar_ejecutable() -> Path:
 # --- Registro en los clientes -------------------------------------------------
 
 
+# Rutas reales: la version de la Store instala en ...\WindowsApps\Claude_<ver>pp\,
+# la clasica en %LOCALAPPDATA%\AnthropicClaudepp-<ver>\. Se mira la ruta y no el
+# nombre porque en Windows Claude Code tambien se llama claude.exe.
+# Cadena literal (r""): sin ella, Python leeria el  de pp como el caracter BEL.
+GUION_DETECCION_WINDOWS = (
+    "$n=0; Get-Process -Name Claude -ErrorAction SilentlyContinue | ForEach-Object {"
+    " try { $r=$_.Path } catch { $r='' };"
+    r" if ($r -like '*WindowsApps*' -or $r -like '*\Claude\app\*'"
+    " -or $r -like '*AnthropicClaude*') { $n++ } }; $n"
+)
+
+
 def claude_desktop_abierto() -> bool:
     """Claude Desktop reescribe su configuración cuando guarda preferencias, así
     que lo que escribamos con la app abierta se pierde. Hay que distinguirlo de
     Claude Code, que en Windows también se llama claude.exe."""
-    if os.name != "nt":
+    if sys.platform == "darwin":
+        try:
+            # -x: nombre exacto, para no confundirlo con "claude" (Claude Code)
+            hecho = subprocess.run(["pgrep", "-x", "Claude"], capture_output=True, timeout=20)
+            return hecho.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+    if sys.platform != "win32":
         return False
-    guion = (
-        "$n=0; Get-Process -Name Claude -ErrorAction SilentlyContinue | ForEach-Object {"
-        " try { $r=$_.Path } catch { $r='' };"
-        " if ($r -like '*WindowsApps*' -or $r -like '*\Claudepp\*'"
-        " -or $r -like '*AnthropicClaude*') { $n++ } }; $n"
-    )
     try:
         resultado = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", guion],
+            ["powershell", "-NoProfile", "-Command", GUION_DETECCION_WINDOWS],
             capture_output=True,
             timeout=30,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),

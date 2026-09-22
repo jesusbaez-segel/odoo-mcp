@@ -1,0 +1,5 @@
+# Los scripts de shell deben conservar finales de linea LF: con CRLF, macOS y
+# Linux fallan con "bad interpreter" al leer el shebang.
+*.sh text eol=lf
+# Los de PowerShell, al contrario, se quedan en CRLF.
+*.ps1 text eol=crlf

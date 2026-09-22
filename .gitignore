@@ -1,7 +1,10 @@
 .env
 .venv/
 *.tar.gz
+*.rar
+*.zip
 *.exe
+*.command
 __pycache__/
 *.pyc
 .pytest_cache/

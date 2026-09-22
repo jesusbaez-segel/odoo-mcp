@@ -1,0 +1,104 @@
+name: Construir ejecutables
+
+# Genera los tres ejecutables sin necesidad de tener las tres maquinas:
+# PyInstaller no cruza plataformas, asi que cada uno se compila en su sistema.
+#   - Windows           -> odoo-mcp.exe
+#   - Mac Apple Silicon -> odoo-mcp-mac-apple-silicon.command
+#   - Mac Intel         -> odoo-mcp-mac-intel.command
+#
+# Se lanza a mano (Actions -> Construir ejecutables -> Run workflow) o al publicar
+# una version, y entonces los adjunta a la Release para poder descargarlos.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  construir:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.so }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nombre: Windows
+            so: windows-latest
+            guion: powershell -ExecutionPolicy Bypass -File build.ps1
+            artefacto: odoo-mcp-windows
+            ruta: dist/odoo-mcp.exe
+          # macos-14 y posteriores son Apple Silicon (arm64)
+          - nombre: Mac Apple Silicon
+            so: macos-14
+            guion: ./build.sh
+            artefacto: odoo-mcp-mac-apple-silicon
+            ruta: dist/odoo-mcp-mac-apple-silicon.command
+          # macos-13 es el ultimo runner con Intel (x86_64)
+          - nombre: Mac Intel
+            so: macos-13
+            guion: ./build.sh
+            artefacto: odoo-mcp-mac-intel
+            ruta: dist/odoo-mcp-mac-intel.command
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Instalar Python
+        run: uv python install 3.12
+
+      - name: Permisos de ejecucion del guion
+        if: runner.os == 'macOS'
+        run: chmod +x build.sh
+
+      - name: Construir
+        run: ${{ matrix.guion }}
+
+      - name: Comprobar que el ejecutable arranca
+        shell: bash
+        run: |
+          "${{ matrix.ruta }}" --version
+          "${{ matrix.ruta }}" --help
+
+      - name: Subir el ejecutable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artefacto }}
+          path: ${{ matrix.ruta }}
+          if-no-files-found: error
+
+  publicar:
+    name: Adjuntar a la Release
+    needs: construir
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ejecutables
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ejecutables/*
+          body: |
+            Descarga el archivo que corresponda a tu equipo y ábrelo con doble clic:
+
+            | Equipo | Archivo |
+            |---|---|
+            | Windows | `odoo-mcp.exe` |
+            | Mac con chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.command` |
+            | Mac con Intel | `odoo-mcp-mac-intel.command` |
+
+            En el menú Apple → *Acerca de este Mac* pone qué chip lleva.
+
+            Los ejecutables no están firmados digitalmente, así que la primera vez
+            el sistema avisa: en Windows, *Más información → Ejecutar de todas
+            formas*; en Mac, clic derecho sobre el archivo → *Abrir* → *Abrir*.

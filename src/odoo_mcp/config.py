@@ -8,6 +8,7 @@ variables del entorno siguen teniendo prioridad (útil en desarrollo y en CI).
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,6 +40,8 @@ _ENV_VARS = {
 
 def user_config_path() -> Path:
     """Archivo donde el asistente de instalación guarda los datos de Odoo."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / CONFIG_DIRNAME / CONFIG_FILENAME
     base = os.environ.get("APPDATA")  # Windows
     if base:
         return Path(base) / CONFIG_DIRNAME / CONFIG_FILENAME

@@ -28,14 +28,48 @@ conectada a una tubería) hace de servidor MCP.
 Si vuelves a abrirlo cuando ya está instalado, sale un menú: reconfigurar,
 comprobar la conexión, desinstalar o salir.
 
+## Instalación (macOS)
+
+Igual de simple, con un archivo distinto según el chip del Mac:
+
+| Mac | Archivo |
+|---|---|
+| Chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.command` |
+| Intel | `odoo-mcp-mac-intel.command` |
+
+En el menú Apple → *Acerca de este Mac* pone cuál es.
+
+1. Doble clic en el archivo. **La primera vez macOS lo bloqueará** porque no está
+   firmado: cierra el aviso, haz **clic derecho sobre el archivo → Abrir → Abrir**.
+   Solo hace falta una vez.
+2. Responde las tres preguntas de siempre.
+
+Dónde deja las cosas en Mac:
+
+| Qué | Dónde |
+|---|---|
+| El servidor | `~/Library/Application Support/odoo-mcp/odoo-mcp` |
+| Tus datos de Odoo | `~/Library/Application Support/odoo-mcp/config.env` (permisos 600) |
+| Registro en Claude Code | `~/.claude.json` |
+| Registro en Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+El asistente le quita al ejecutable la marca de cuarentena (`com.apple.quarantine`)
+al instalarlo. Sin eso, Gatekeeper impediría que Claude arrancase el servidor
+aunque tú ya hubieras autorizado el archivo original.
+
 ### Cómo pasárselo a otra persona
 
-Mándale **`odoo-mcp.exe`** y nada más (~20 MB, por Drive, USB o lo que sea). Doble
-clic y el asistente le pide **sus** datos de Odoo.
+Mándale **un solo archivo** (~20 MB, por Drive, USB o lo que sea): el `.exe` si
+usa Windows, o el `.command` que corresponda a su Mac. Doble clic y el asistente
+le pide **sus** datos de Odoo.
 
-⚠️ No compartas tu `%APPDATA%\odoo-mcp\config.env`: contiene tu contraseña.
+Ni WhatsApp ni Gmail dejan adjuntar `.exe`: mételo en un ZIP o usa Drive.
 
-### Dónde deja las cosas
+⚠️ No compartas nunca tu archivo `config.env` (en `%APPDATA%\odoo-mcp\` o en
+`~/Library/Application Support/odoo-mcp/`): contiene tu contraseña. El ejecutable
+no la lleva dentro.
+
+### Dónde deja las cosas (Windows)
 
 | Qué | Dónde |
 |---|---|
@@ -52,13 +86,17 @@ deja una copia `.bak` antes de tocarlos.
 
 ### Si algo falla
 
-Abre una ventana de comandos y ejecuta:
+Ejecuta esto y te dirá si conecta y con qué usuario, o cuál es el error exacto:
 
 ```
+:: Windows (en una ventana de comandos)
 %LOCALAPPDATA%\Programs\odoo-mcp\odoo-mcp.exe --check
 ```
 
-Te dirá si conecta y con qué usuario, o cuál es el error exacto.
+```bash
+# macOS (en Terminal)
+~/Library/Application\ Support/odoo-mcp/odoo-mcp --check
+```
 
 ## Herramientas
 
@@ -88,6 +126,8 @@ Ejemplos de peticiones a Claude:
 | *(ninguno)* | Decide solo: doble clic → asistente; lanzado por Claude → servidor |
 | `--mcp` | Fuerza el servidor MCP por stdio (es lo que se registra en Claude) |
 | `--instalar` | Fuerza el asistente de instalación |
+| `--registrar` | Vuelve a registrarlo en Claude sin volver a pedir los datos |
+| `--menu` | Abre el menú (registrar, reconfigurar, comprobar, desinstalar) |
 | `--desinstalar` | Lo quita de Claude y borra la instalación |
 | `--check` | Comprueba la conexión con Odoo y sale |
 | `--version`, `--help` | Lo que parece |
@@ -105,14 +145,21 @@ Copia `.env.example` a `.env` con tus datos: en desarrollo el servidor lo lee de
 directorio actual. Este repositorio incluye `.mcp.json`, así que Claude Code
 ejecuta el servidor desde el código fuente al abrirlo en esta carpeta.
 
-Para generar el ejecutable que se reparte:
+Para generar los ejecutables que se reparten:
 
 ```
-powershell -ExecutionPolicy Bypass -File build.ps1
+powershell -ExecutionPolicy Bypass -File build.ps1   # en Windows -> dist\odoo-mcp.exe
+./build.sh                                           # en macOS   -> dist/odoo-mcp-mac-*.command
 ```
 
-Instala dependencias, pasa las pruebas, empaqueta con PyInstaller y verifica el
-binario. Deja `dist\odoo-mcp.exe`.
+Ambos instalan dependencias, pasan las pruebas, empaquetan con PyInstaller y
+verifican el binario resultante.
+
+**PyInstaller no cruza plataformas**: el ejecutable de cada sistema hay que
+compilarlo en ese sistema. Para no necesitar un Mac, `.github/workflows/build.yml`
+los construye los tres en GitHub Actions (Windows, Mac Apple Silicon en `macos-14`
+y Mac Intel en `macos-13`). Se lanza desde *Actions → Construir ejecutables → Run
+workflow*, o publicando una etiqueta `vX.Y.Z`, que además los adjunta a la Release.
 
 ## Configuración
 
@@ -121,7 +168,8 @@ El servidor busca sus datos en este orden (gana el primero que exista):
 1. Variables de entorno del proceso (`ODOO_URL`, `ODOO_DB`, …). Siempre tienen
    prioridad sobre el archivo.
 2. La ruta que indique `ODOO_MCP_CONFIG`.
-3. `%APPDATA%\odoo-mcp\config.env` — lo que escribe el asistente.
+3. Lo que escribe el asistente: `%APPDATA%\odoo-mcp\config.env` en Windows,
+   `~/Library/Application Support/odoo-mcp/config.env` en macOS.
 4. `.env` en el directorio actual — comodidad al desarrollar.
 
 | Variable | Descripción |
