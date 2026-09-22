@@ -61,11 +61,13 @@ jobs:
       - name: Construir
         run: ${{ matrix.guion }}
 
-      - name: Comprobar que el ejecutable arranca
+      # Prueba de humo en la plataforma real: arranque, protocolo MCP por stdio,
+      # asistente en un HOME temporal (instala, registra en Claude Code y Claude
+      # Desktop, rechaza credenciales sin escribir nada) y --check. Es lo que
+      # permite dar por bueno el binario de Mac sin tener un Mac a mano.
+      - name: Prueba de humo del ejecutable
         shell: bash
-        run: |
-          "${{ matrix.ruta }}" --version
-          "${{ matrix.ruta }}" --help
+        run: uv run python packaging/smoke_test.py "${{ matrix.ruta }}"
 
       - name: Subir el ejecutable
         uses: actions/upload-artifact@v4
