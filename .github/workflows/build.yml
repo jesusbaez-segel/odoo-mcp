@@ -27,21 +27,32 @@ jobs:
         include:
           - nombre: Windows
             so: windows-latest
+            python: "3.12"
             guion: powershell -ExecutionPolicy Bypass -File build.ps1
             artefacto: odoo-mcp-windows
             ruta: dist/odoo-mcp.exe
           # macos-14 y posteriores son Apple Silicon (arm64)
           - nombre: Mac Apple Silicon
             so: macos-14
+            python: "3.12"
             guion: ./build.sh
             artefacto: odoo-mcp-mac-apple-silicon
             ruta: dist/odoo-mcp-mac-apple-silicon.command
-          # macos-13 es el ultimo runner con Intel (x86_64)
+          # Los runners Intel (macos-13) casi no existen ya: mas de 30 minutos en
+          # cola sin que ninguno cogiera el trabajo. Se compila en Apple Silicon
+          # con un Python x86_64 bajo Rosetta 2 (preinstalado en el runner):
+          # PyInstaller genera el binario de la arquitectura del Python que lo
+          # ejecuta, y la prueba de humo corre tambien bajo Rosetta.
           - nombre: Mac Intel
-            so: macos-13
+            so: macos-14
+            python: cpython-3.12-macos-x86_64-none
             guion: ./build.sh
             artefacto: odoo-mcp-mac-intel
             ruta: dist/odoo-mcp-mac-intel.command
+
+    env:
+      # uv sync / uv run usan este interprete; en Mac Intel es el x86_64
+      UV_PYTHON: ${{ matrix.python }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +63,7 @@ jobs:
           enable-cache: true
 
       - name: Instalar Python
-        run: uv python install 3.12
+        run: uv python install ${{ matrix.python }}
 
       - name: Permisos de ejecucion del guion
         if: runner.os == 'macOS'

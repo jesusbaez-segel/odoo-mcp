@@ -47,7 +47,9 @@ chmod +x "$EXE"
 echo "[4/4] Verificando el ejecutable..."
 SALIDA="$("$EXE" --version)"
 
-ARQ="$(uname -m)"          # arm64 (Apple Silicon) o x86_64 (Intel)
+# La arquitectura la decide el Python que ejecuta PyInstaller, no la maquina:
+# un Python x86_64 bajo Rosetta en un Mac arm64 genera un binario x86_64.
+ARQ="$(uv run python -c 'import platform; print(platform.machine())')"
 MB="$(du -m "$EXE" | cut -f1)"
 if [ "$(uname -s)" = "Darwin" ]; then
     case "$ARQ" in
