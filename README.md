@@ -157,9 +157,12 @@ verifican el binario resultante.
 
 **PyInstaller no cruza plataformas**: el ejecutable de cada sistema hay que
 compilarlo en ese sistema. Para no necesitar un Mac, `.github/workflows/build.yml`
-los construye los tres en GitHub Actions (Windows, Mac Apple Silicon en `macos-14`
-y Mac Intel en `macos-13`). Se lanza desde *Actions → Construir ejecutables → Run
-workflow*, o publicando una etiqueta `vX.Y.Z`, que además los adjunta a la Release.
+los construye los tres en GitHub Actions. Los dos de Mac salen del mismo runner
+Apple Silicon (`macos-14`): el de Intel se compila con un Python x86_64 bajo
+Rosetta 2, porque los runners Intel de GitHub ya casi no existen. Cada binario
+pasa `packaging/smoke_test.py` en su propia plataforma antes de publicarse. Se
+lanza desde *Actions → Construir ejecutables → Run workflow*, o publicando una
+etiqueta `vX.Y.Z`, que además los adjunta a la Release.
 
 ## Configuración
 

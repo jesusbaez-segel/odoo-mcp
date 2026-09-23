@@ -180,9 +180,21 @@ recibe: ninguno más allá de tener Claude.
 **Por qué CI y no un Mac**: PyInstaller no cruza plataformas. Sin un Mac a mano, la
 única forma de obtener el binario es compilarlo en un runner de Apple. El workflow
 `.github/workflows/build.yml` construye los tres a la vez: Windows
-(`windows-latest`), Mac Apple Silicon (`macos-14`, arm64) y Mac Intel (`macos-13`,
-x86_64). Se lanza a mano o al publicar una etiqueta `vX.Y.Z`, que además adjunta
-los ejecutables a la Release.
+(`windows-latest`) y los dos de Mac en `macos-14` (arm64). Se lanza a mano o al
+publicar una etiqueta `vX.Y.Z`, que además adjunta los ejecutables a la Release.
+
+**Intel se compila en Apple Silicon bajo Rosetta 2**: los runners `macos-13`
+(Intel) están agotados —el trabajo pasó más de 30 minutos en cola, dos veces— y
+GitHub los está retirando. Con `UV_PYTHON=cpython-3.12-macos-x86_64-none`,
+PyInstaller genera un binario x86_64 (la arquitectura del Python que lo ejecuta)
+y la prueba de humo lo ejecuta bajo Rosetta. `build.sh` toma la arquitectura de
+`platform.machine()`, no de `uname -m`, que en ese runner diría arm64.
+
+**`cryptography<49`**: desde la 49 no hay rueda para macOS Intel (solo arm64) y uv
+intentaba compilarla en Rust cruzando de arm64 a x86_64 sin OpenSSL. Es una
+dependencia indirecta (`mcp` → `pyjwt[crypto]`) que este servidor no usa: sirve
+para autenticación HTTP y aquí todo va por stdio. Se acota con
+`constraint-dependencies` de uv; hasta la 48.0.1 hay rueda `universal2`.
 
 **Dos binarios nativos en vez de uno para Intel bajo Rosetta**: cuesta lo mismo en
 CI y le ahorra al usuario de Apple Silicon un diálogo de instalación de Rosetta
