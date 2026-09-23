@@ -23,3 +23,12 @@ dev = ["pytest>=8.0", "pyinstaller>=6.0"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+
+[tool.uv]
+# cryptography es dependencia indirecta (mcp -> pyjwt[crypto]) que no usamos:
+# solo sirve para autenticacion HTTP y este servidor va por stdio. A partir de
+# la 49 dejo de publicar rueda para macOS Intel y uv intenta compilarla desde
+# el codigo fuente en Rust, lo que falla al cruzar de arm64 a x86_64 en CI.
+# Hasta la 48.0.1 hay rueda universal2 que sirve para las dos arquitecturas.
+constraint-dependencies = ["cryptography<49"]
+
