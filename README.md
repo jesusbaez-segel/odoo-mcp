@@ -34,15 +34,26 @@ Igual de simple, con un archivo distinto según el chip del Mac:
 
 | Mac | Archivo |
 |---|---|
-| Chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.command` |
-| Intel | `odoo-mcp-mac-intel.command` |
+| Chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.zip` |
+| Intel (o si no sabes cuál es) | `odoo-mcp-mac-intel.zip` |
 
-En el menú Apple → *Acerca de este Mac* pone cuál es.
+En el menú Apple → *Acerca de este Mac* pone cuál es. El de Intel funciona en los
+dos tipos (en chip Apple lo ejecuta Rosetta, que macOS ofrece instalar con un clic).
 
-1. Doble clic en el archivo. **La primera vez macOS lo bloqueará** porque no está
-   firmado: cierra el aviso, haz **clic derecho sobre el archivo → Abrir → Abrir**.
-   Solo hace falta una vez.
-2. Responde las tres preguntas de siempre.
+1. Doble clic en el `.zip`: aparece `odoo-mcp-mac-….command`.
+2. Doble clic en el `.command`. **La primera vez macOS lo bloqueará** porque no
+   está firmado por Apple:
+   - **macOS 15 o posterior**: cierra el aviso y ve a *Ajustes del Sistema →
+     Privacidad y seguridad*; abajo del todo aparece *Abrir de todos modos*.
+   - **macOS 13 o 14**: clic derecho sobre el `.command` → *Abrir* → *Abrir*.
+
+   Solo hace falta esa vez.
+3. Se abre Terminal y responde las tres preguntas de siempre.
+
+Va en `.zip` y no suelto por un motivo concreto: un archivo descargado desde el
+navegador pierde el permiso de ejecución, y el doble clic daría *«no tienes los
+privilegios de acceso apropiados»*. El zip lo conserva. Eliminar del todo el aviso
+de la primera vez exigiría firmar y notarizar con una cuenta de Apple Developer.
 
 Dónde deja las cosas en Mac:
 
@@ -60,7 +71,7 @@ aunque tú ya hubieras autorizado el archivo original.
 ### Cómo pasárselo a otra persona
 
 Mándale **un solo archivo** (~20 MB, por Drive, USB o lo que sea): el `.exe` si
-usa Windows, o el `.command` que corresponda a su Mac. Doble clic y el asistente
+usa Windows, o el `.zip` que corresponda a su Mac. Doble clic y el asistente
 le pide **sus** datos de Odoo.
 
 Ni WhatsApp ni Gmail dejan adjuntar `.exe`: mételo en un ZIP o usa Drive.

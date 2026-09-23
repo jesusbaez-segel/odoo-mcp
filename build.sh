@@ -59,9 +59,19 @@ if [ "$(uname -s)" = "Darwin" ]; then
     esac
     cp "$EXE" "dist/$NOMBRE"
     chmod +x "dist/$NOMBRE"
+    # Un archivo descargado desde el navegador pierde el bit de ejecucion (HTTP
+    # no transporta permisos) y el doble clic fallaria con "no tienes los
+    # privilegios de acceso apropiados". Dentro de un zip creado en macOS los
+    # permisos se conservan y Archive Utility los restaura al descomprimir.
+    ZIP="${NOMBRE%.command}.zip"
+    (cd dist && rm -f "$ZIP" && zip -q -X "$ZIP" "$NOMBRE")
+    TMP="$(mktemp -d)"
+    unzip -q "dist/$ZIP" -d "$TMP"
+    [ -x "$TMP/$NOMBRE" ] || { echo "ERROR: el zip no conserva el permiso de ejecucion" >&2; exit 1; }
+    rm -rf "$TMP"
     echo
     echo "  Listo: dist/$NOMBRE (${MB} MB, $ARQ) - $SALIDA"
-    echo "  Doble clic instala; Claude lo usa como servidor."
+    echo "  Para repartir: dist/$ZIP (conserva el permiso de ejecucion al descargarlo)"
 else
     echo
     echo "  Listo: $EXE (${MB} MB, $ARQ) - $SALIDA"

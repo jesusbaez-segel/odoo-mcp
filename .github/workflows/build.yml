@@ -31,6 +31,7 @@ jobs:
             guion: powershell -ExecutionPolicy Bypass -File build.ps1
             artefacto: odoo-mcp-windows
             ruta: dist/odoo-mcp.exe
+            publicar: dist/odoo-mcp.exe
           # macos-14 y posteriores son Apple Silicon (arm64)
           - nombre: Mac Apple Silicon
             so: macos-14
@@ -38,6 +39,9 @@ jobs:
             guion: ./build.sh
             artefacto: odoo-mcp-mac-apple-silicon
             ruta: dist/odoo-mcp-mac-apple-silicon.command
+            # Se publica el zip: un .command descargado suelto pierde el permiso
+            # de ejecucion y el doble clic falla
+            publicar: dist/odoo-mcp-mac-apple-silicon.zip
           # Los runners Intel (macos-13) casi no existen ya: mas de 30 minutos en
           # cola sin que ninguno cogiera el trabajo. Se compila en Apple Silicon
           # con un Python x86_64 bajo Rosetta 2 (preinstalado en el runner):
@@ -49,6 +53,7 @@ jobs:
             guion: ./build.sh
             artefacto: odoo-mcp-mac-intel
             ruta: dist/odoo-mcp-mac-intel.command
+            publicar: dist/odoo-mcp-mac-intel.zip
 
     env:
       # uv sync / uv run usan este interprete; en Mac Intel es el x86_64
@@ -84,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artefacto }}
-          path: ${{ matrix.ruta }}
+          path: ${{ matrix.publicar }}
           if-no-files-found: error
 
   publicar:
@@ -107,11 +112,19 @@ jobs:
             | Equipo | Archivo |
             |---|---|
             | Windows | `odoo-mcp.exe` |
-            | Mac con chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.command` |
-            | Mac con Intel | `odoo-mcp-mac-intel.command` |
+            | Mac con chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.zip` |
+            | Mac con Intel (o si no sabes cuál es) | `odoo-mcp-mac-intel.zip` |
 
-            En el menú Apple → *Acerca de este Mac* pone qué chip lleva.
+            En el menú Apple → *Acerca de este Mac* pone qué chip lleva. El de
+            Intel funciona en los dos (en chip Apple, con Rosetta).
 
-            Los ejecutables no están firmados digitalmente, así que la primera vez
-            el sistema avisa: en Windows, *Más información → Ejecutar de todas
-            formas*; en Mac, clic derecho sobre el archivo → *Abrir* → *Abrir*.
+            **Windows**: doble clic en `odoo-mcp.exe`. La primera vez SmartScreen
+            avisa: *Más información → Ejecutar de todas formas*.
+
+            **Mac**: doble clic en el `.zip` (sale el `.command`), y doble clic en
+            el `.command`. La primera vez macOS lo bloquea por no estar firmado:
+            - macOS 15 o posterior: *Ajustes del Sistema → Privacidad y seguridad*,
+              abajo del todo, *Abrir de todos modos*.
+            - macOS 13 o 14: clic derecho sobre el `.command` → *Abrir* → *Abrir*.
+
+            Solo hace falta esa vez. Después Claude lo arranca solo.
