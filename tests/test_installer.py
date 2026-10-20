@@ -389,3 +389,16 @@ def test_escribe_cuando_claude_desktop_esta_cerrado(tmp_path, monkeypatch):
     datos = json.loads(json_desktop.read_text(encoding="utf-8"))
     assert "odoo" in datos["mcpServers"]
     assert datos["preferences"] == {}  # no se pierden sus preferencias
+
+
+def test_encuentra_claude_desktop_store_reciente_en_claude_data(windows, tmp_path, monkeypatch):
+    """Visto en otra maquina (2026-10-20): el paquete AnthropicPBC.Claude_<hash>
+    guarda en %LOCALAPPDATA%\Claude-Data\anthropicpbc.claude_<hash>\."""
+    carpeta = tmp_path / "Claude-Data" / "anthropicpbc.claude_fnn82j28hfe8t"
+    carpeta.mkdir(parents=True)
+    (tmp_path / "Claude-Data" / "cache-ajena").mkdir()  # no es de Claude: se ignora
+    (tmp_path / "Packages" / "AnthropicPBC.Claude_fnn82j28hfe8t").mkdir(parents=True)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "sin-claude"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    assert configs_claude_desktop() == [carpeta / "claude_desktop_config.json"]

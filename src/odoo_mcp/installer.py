@@ -132,10 +132,12 @@ def configs_claude_desktop() -> list[Path]:
             carpetas.append(Path(appdata) / "Claude")
         local = os.environ.get("LOCALAPPDATA")
         if local:
-            paquetes = Path(local) / "Packages"
-            if paquetes.is_dir():
+            # Builds nuevas de la Store (AnthropicPBC.Claude_<hash>) guardan en
+            # %LOCALAPPDATA%\Claude-Data\<paquete en minusculas>\; la carpeta
+            # existe tambien en maquinas con la build antigua, pero vacia.
+            for patron in ("Packages/*Claude_*/LocalCache/Roaming/Claude", "Claude-Data/*claude*"):
                 try:
-                    carpetas.extend(sorted(paquetes.glob("Claude_*/LocalCache/Roaming/Claude")))
+                    carpetas.extend(sorted(Path(local).glob(patron)))
                 except OSError:
                     pass
     return [c / "claude_desktop_config.json" for c in carpetas if c.is_dir()]

@@ -89,9 +89,10 @@ no la lleva dentro.
 | Registro en Claude Code | `%USERPROFILE%\.claude.json` |
 | Registro en Claude Desktop (clásico) | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Registro en Claude Desktop (Microsoft Store) | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
+| Registro en Claude Desktop (Store, builds recientes) | `%LOCALAPPDATA%\Claude-Datanthropicpbc.claude_*\claude_desktop_config.json` |
 
 Claude Desktop guarda su configuración en un sitio u otro según cómo se haya
-instalado; el asistente busca en los dos. Si ya tenías otros servidores MCP, se
+instalado; el asistente busca en los tres. Si ya tenías otros servidores MCP, se
 conservan: **fusiona** su entrada en esos archivos en vez de sobrescribirlos, y
 deja una copia `.bak` antes de tocarlos.
 
