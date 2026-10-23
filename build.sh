@@ -73,6 +73,9 @@ if [ "$(uname -s)" = "Darwin" ]; then
     echo "  Listo: dist/$NOMBRE (${MB} MB, $ARQ) - $SALIDA"
     echo "  Para repartir: dist/$ZIP (conserva el permiso de ejecucion al descargarlo)"
 else
+    TGZ="odoo-mcp-linux-$ARQ.tar.gz"
+    (cd dist && rm -f "$TGZ" && tar -czf "$TGZ" odoo-mcp)
     echo
     echo "  Listo: $EXE (${MB} MB, $ARQ) - $SALIDA"
+    echo "  Para repartir: dist/$TGZ (conserva el permiso de ejecucion)"
 fi

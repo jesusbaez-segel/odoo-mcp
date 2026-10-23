@@ -3,6 +3,7 @@ name: Construir ejecutables
 # Genera los tres ejecutables sin necesidad de tener las tres maquinas:
 # PyInstaller no cruza plataformas, asi que cada uno se compila en su sistema.
 #   - Windows           -> odoo-mcp.exe
+#   - Linux x86_64      -> odoo-mcp-linux-x86_64.tar.gz
 #   - Mac Apple Silicon -> odoo-mcp-mac-apple-silicon.command
 #   - Mac Intel         -> odoo-mcp-mac-intel.command
 #
@@ -32,6 +33,16 @@ jobs:
             artefacto: odoo-mcp-windows
             ruta: dist/odoo-mcp.exe
             publicar: dist/odoo-mcp.exe
+          # ubuntu-22.04 y no latest: el binario usa la glibc del sistema donde se
+          # compila, y una mas vieja funciona tambien en distribuciones mas nuevas
+          - nombre: Linux
+            so: ubuntu-22.04
+            python: "3.12"
+            guion: ./build.sh
+            artefacto: odoo-mcp-linux-x86_64
+            ruta: dist/odoo-mcp
+            # tar.gz y no el binario suelto: conserva el permiso de ejecucion
+            publicar: dist/odoo-mcp-linux-x86_64.tar.gz
           # macos-14 y posteriores son Apple Silicon (arm64)
           - nombre: Mac Apple Silicon
             so: macos-14
@@ -71,7 +82,7 @@ jobs:
         run: uv python install ${{ matrix.python }}
 
       - name: Permisos de ejecucion del guion
-        if: runner.os == 'macOS'
+        if: runner.os != 'Windows'
         run: chmod +x build.sh
 
       - name: Construir
@@ -114,6 +125,7 @@ jobs:
             | Windows | `odoo-mcp.exe` |
             | Mac con chip Apple (M1–M4) | `odoo-mcp-mac-apple-silicon.zip` |
             | Mac con Intel (o si no sabes cuál es) | `odoo-mcp-mac-intel.zip` |
+            | Linux (x86_64) | `odoo-mcp-linux-x86_64.tar.gz` |
 
             En el menú Apple → *Acerca de este Mac* pone qué chip lleva. El de
             Intel funciona en los dos (en chip Apple, con Rosetta).
@@ -126,5 +138,8 @@ jobs:
             - macOS 15 o posterior: *Ajustes del Sistema → Privacidad y seguridad*,
               abajo del todo, *Abrir de todos modos*.
             - macOS 13 o 14: clic derecho sobre el `.command` → *Abrir* → *Abrir*.
+
+            **Linux**: `tar -xzf odoo-mcp-linux-x86_64.tar.gz` y en una terminal
+            `./odoo-mcp --instalar`.
 
             Solo hace falta esa vez. Después Claude lo arranca solo.
