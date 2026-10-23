@@ -99,7 +99,7 @@ def carpeta_instalacion() -> Path:
     que quedó registrado en Claude tiene que seguir existiendo."""
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "odoo-mcp"
-    base = os.environ.get("LOCALAPPDATA")
+    base = os.environ.get("LOCALAPPDATA") if sys.platform == "win32" else None
     if base:
         return Path(base) / "Programs" / "odoo-mcp"
     return Path.home() / ".local" / "share" / "odoo-mcp"
