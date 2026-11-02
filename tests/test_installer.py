@@ -392,7 +392,7 @@ def test_escribe_cuando_claude_desktop_esta_cerrado(tmp_path, monkeypatch):
 
 
 def test_encuentra_claude_desktop_store_reciente_en_claude_data(windows, tmp_path, monkeypatch):
-    """Visto en otra maquina (2026-10-20): el paquete AnthropicPBC.Claude_<hash>
+    r"""Visto en otra maquina (2026-10-20): el paquete AnthropicPBC.Claude_<hash>
     guarda en %LOCALAPPDATA%\Claude-Data\anthropicpbc.claude_<hash>\."""
     carpeta = tmp_path / "Claude-Data" / "anthropicpbc.claude_fnn82j28hfe8t"
     carpeta.mkdir(parents=True)

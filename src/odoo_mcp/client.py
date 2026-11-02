@@ -90,8 +90,15 @@ class OdooClient:
                     f"No se pudo conectar con Odoo en {self.base_url}: {exc}"
                 ) from exc
             if not uid:
+                # Claude repite este texto al usuario: debe decir qué datos se usaron y
+                # cómo corregirlos (pedir "una clave API" no sirve en Odoo 13).
                 raise OdooError(
-                    "Autenticación fallida: revisa ODOO_DB, ODOO_USERNAME y ODOO_API_KEY."
+                    f"Autenticación fallida: Odoo rechaza el usuario "
+                    f"'{self._settings.username}' o su contraseña en la base "
+                    f"'{self._settings.db}' ({self.base_url}). Usa la contraseña con la que "
+                    "entras a Odoo, o una clave API (solo existen desde Odoo 14). Para cambiar "
+                    "los datos guardados, abre de nuevo el instalador de odoo-mcp y elige "
+                    "'Cambiar mis datos de Odoo'."
                 )
             self._uid = uid
         return self._uid

@@ -61,6 +61,7 @@ Dónde deja las cosas en Mac:
 |---|---|
 | El servidor | `~/Library/Application Support/odoo-mcp/odoo-mcp` |
 | Tus datos de Odoo | `~/Library/Application Support/odoo-mcp/config.env` (permisos 600) |
+| Registro de errores | `~/Library/Application Support/odoo-mcp/odoo-mcp.log` |
 | Registro en Claude Code | `~/.claude.json` |
 | Registro en Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` |
 
@@ -86,10 +87,11 @@ no la lleva dentro.
 |---|---|
 | El servidor | `%LOCALAPPDATA%\Programs\odoo-mcp\odoo-mcp.exe` |
 | Tus datos de Odoo | `%APPDATA%\odoo-mcp\config.env` (solo tu usuario puede leerlo) |
+| Registro de errores | `%APPDATA%\odoo-mcp\odoo-mcp.log` |
 | Registro en Claude Code | `%USERPROFILE%\.claude.json` |
 | Registro en Claude Desktop (clásico) | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Registro en Claude Desktop (Microsoft Store) | `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json` |
-| Registro en Claude Desktop (Store, builds recientes) | `%LOCALAPPDATA%\Claude-Datanthropicpbc.claude_*\claude_desktop_config.json` |
+| Registro en Claude Desktop (Store, builds recientes) | `%LOCALAPPDATA%\Claude-Data\anthropicpbc.claude_*\claude_desktop_config.json` |
 
 Claude Desktop guarda su configuración en un sitio u otro según cómo se haya
 instalado; el asistente busca en los tres. Si ya tenías otros servidores MCP, se
@@ -98,7 +100,13 @@ deja una copia `.bak` antes de tocarlos.
 
 ### Si algo falla
 
-Ejecuta esto y te dirá si conecta y con qué usuario, o cuál es el error exacto:
+Cuando Claude dice que el conector falló, el detalle está en `odoo-mcp.log`
+(ruta en las tablas de arriba): con qué URL, base y usuario arrancó el servidor
+y el error exacto de cada llamada que falló, con fecha y hora. Lo escribe el
+servidor cada vez que Claude lo lanza; no hace falta activar nada.
+
+Para probar la conexión a mano, ejecuta esto y te dirá si conecta y con qué
+usuario, o cuál es el error exacto:
 
 ```
 :: Windows (en una ventana de comandos)

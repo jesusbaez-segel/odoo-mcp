@@ -1,8 +1,13 @@
 """Smoke test del contrato MCP: registro de tools y una llamada de punta a punta."""
 
 import asyncio
+import logging
+
+import pytest
 
 from odoo_mcp import server
+from odoo_mcp.client import OdooError
+from odoo_mcp.config import Settings
 
 from fakes import MODERN_TASK_FIELDS, FakeClient
 
@@ -107,3 +112,29 @@ def test_version_y_ayuda(capsys):
 def test_argumento_desconocido(capsys):
     assert server.main(["--loquesea"]) == 2
     assert "no reconocido" in capsys.readouterr().err
+
+
+def test_el_log_guarda_la_config_y_los_errores_de_las_tools(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "user_config_path", lambda: tmp_path / "config.env")
+    monkeypatch.setattr(server, "_client", None)
+    monkeypatch.setattr(
+        server,
+        "load_settings",
+        lambda: Settings(url="http://odoo.test", db="db", username="ana@x.com", api_key="k"),
+    )
+    handler = server.activar_log()
+    try:
+        server.get_client()
+
+        def rompe():
+            raise OdooError("Autenticación fallida")
+
+        with pytest.raises(OdooError):
+            asyncio.run(server._run(rompe))
+    finally:
+        logging.getLogger().removeHandler(handler)
+        handler.close()
+    texto = (tmp_path / "odoo-mcp.log").read_text(encoding="utf-8")
+    assert "arrancado" in texto
+    assert "config:" in texto
+    assert "rompe: Autenticación fallida" in texto

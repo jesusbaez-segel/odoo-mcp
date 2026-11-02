@@ -71,8 +71,11 @@ def test_execute_sin_args_ni_kwargs_envia_contenedores_vacios(stubbed_client):
 def test_autenticacion_fallida(stubbed_client):
     odoo, common, _ = stubbed_client
     common.handle_authenticate = lambda *args: False
-    with pytest.raises(OdooError, match="Autenticación fallida"):
+    with pytest.raises(OdooError, match="Autenticación fallida") as info:
         odoo.execute("res.partner", "read", [[1]])
+    mensaje = str(info.value)
+    assert "'user@test.com'" in mensaje and "'db'" in mensaje
+    assert "Cambiar mis datos de Odoo" in mensaje
 
 
 def test_error_de_conexion(stubbed_client):

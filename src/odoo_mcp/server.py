@@ -7,8 +7,11 @@ llamada a Odoo está en vuelo.
 
 from __future__ import annotations
 
+import logging
 import sys
 from functools import partial
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Any
 
 from anyio import to_thread
@@ -16,7 +19,9 @@ from mcp.server.fastmcp import FastMCP
 
 from . import __version__, generic, projects, stdio_filter
 from .client import OdooClient, OdooError
-from .config import ConfigError, load_settings
+from .config import ConfigError, load_settings, user_config_path
+
+log = logging.getLogger("odoo_mcp")
 
 mcp = FastMCP(
     "odoo",
@@ -36,12 +41,43 @@ _client: OdooClient | None = None
 def get_client() -> OdooClient:
     global _client
     if _client is None:
-        _client = OdooClient(load_settings())
+        try:
+            settings = load_settings()
+        except ConfigError as exc:
+            log.error("%s", exc)
+            raise
+        log.info("config: %s base %s usuario %s", settings.url, settings.db, settings.username)
+        _client = OdooClient(settings)
     return _client
 
 
 async def _run(func, *args, **kwargs):
-    return await to_thread.run_sync(partial(func, *args, **kwargs))
+    try:
+        return await to_thread.run_sync(partial(func, *args, **kwargs))
+    except Exception as exc:
+        log.error("%s: %s", func.__name__, exc)
+        raise
+
+
+def ruta_log() -> Path:
+    return user_config_path().with_name("odoo-mcp.log")
+
+
+def activar_log() -> logging.Handler | None:
+    """Archivo junto a config.env con la config usada y cada error de herramienta:
+    Claude solo enseña al usuario un resumen de lo que falló."""
+    ruta = ruta_log()
+    try:
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(ruta, maxBytes=1_000_000, backupCount=1, encoding="utf-8")
+    except OSError:
+        return None  # sin log se sigue funcionando
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(logging.WARNING)  # también los avisos de la librería mcp
+    log.setLevel(logging.INFO)
+    log.info("odoo-mcp %s arrancado", __version__)
+    return handler
 
 
 # --- Proyectos y tableros -----------------------------------------------------
@@ -330,6 +366,7 @@ def _arrancado_por_una_persona() -> bool:
 
 
 def _servidor_mcp() -> int:
+    activar_log()
     stdio_filter.install()
     mcp.run()
     return 0
