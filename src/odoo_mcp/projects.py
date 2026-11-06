@@ -31,12 +31,18 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _url_template(client: OdooClient, model: str) -> str:
+    """Las listas llevan una plantilla y no una URL por elemento: medido, la URL
+    era el 40 % de los tokens de un tablero."""
+    return f"{client.base_url}/web#id={{id}}&model={model}&view_type=form"
+
+
 def _task_url(client: OdooClient, task_id: int) -> str:
-    return f"{client.base_url}/web#id={task_id}&model=project.task&view_type=form"
+    return _url_template(client, "project.task").format(id=task_id)
 
 
 def _project_url(client: OdooClient, project_id: int) -> str:
-    return f"{client.base_url}/web#id={project_id}&model=project.project&view_type=form"
+    return _url_template(client, "project.project").format(id=project_id)
 
 
 def _assignee_field(client: OdooClient) -> str:
@@ -176,7 +182,6 @@ def _card(task: dict, field: str, names: dict[int, str], client: OdooClient) -> 
         "assignees": assignees,
         "deadline": task.get("date_deadline") or None,
         "priority": "alta" if task.get("priority") == "1" else "normal",
-        "url": _task_url(client, task["id"]),
     }
     if task.get("state"):
         card["state"] = task["state"]
@@ -197,9 +202,7 @@ _TASK_CARD_FIELDS = [
 ]
 
 
-def list_projects(
-    client: OdooClient, name: str | None = None, limit: int = 50
-) -> list[dict]:
+def list_projects(client: OdooClient, name: str | None = None, limit: int = 50) -> dict:
     domain: list = [("name", "ilike", name)] if name else []
     fields = _existing_fields(
         client, "project.project", ["name", "task_count", "user_id"]
@@ -212,13 +215,13 @@ def list_projects(
     )
     result = []
     for row in rows:
-        item = {"id": row["id"], "name": row["name"], "url": _project_url(client, row["id"])}
+        item = {"id": row["id"], "name": row["name"]}
         if "task_count" in row:
             item["task_count"] = row["task_count"]
         if row.get("user_id"):
             item["manager"] = row["user_id"][1]
         result.append(item)
-    return result
+    return {"project_url": _url_template(client, "project.project"), "projects": result}
 
 
 def get_board(client: OdooClient, project: str | int, max_tasks: int = 200) -> dict:
@@ -272,6 +275,7 @@ def get_board(client: OdooClient, project: str | int, max_tasks: int = 200) -> d
             "url": _project_url(client, project_id),
         },
         "total_tasks": total,
+        "task_url": _url_template(client, "project.task"),
         "columns": [columns[key] for key in order],
     }
     if total > len(tasks):
@@ -289,7 +293,7 @@ def list_tasks(
     assignee: str | None = None,
     query: str | None = None,
     limit: int = 100,
-) -> list[dict]:
+) -> dict:
     afield = _assignee_field(client)
     domain: list = []
     if project is not None:
@@ -325,7 +329,7 @@ def list_tasks(
         if task.get("stage_id"):
             card["stage"] = task["stage_id"][1]
         result.append(card)
-    return result
+    return {"task_url": _url_template(client, "project.task"), "tasks": result}
 
 
 def get_task(client: OdooClient, task_id: int) -> dict:
@@ -346,6 +350,7 @@ def get_task(client: OdooClient, task_id: int) -> dict:
     task = rows[0]
     names = _assignee_names(client, [task], afield)
     detail = _card(task, afield, names, client)
+    detail["url"] = _task_url(client, task_id)
     detail["description"] = task.get("description") or None
     detail["created"] = task.get("create_date")
     detail["updated"] = task.get("write_date")

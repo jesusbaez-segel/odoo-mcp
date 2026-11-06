@@ -7,6 +7,7 @@ llamada a Odoo está en vuelo.
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from functools import partial
@@ -53,10 +54,25 @@ def get_client() -> OdooClient:
 
 async def _run(func, *args, **kwargs):
     try:
-        return await to_thread.run_sync(partial(func, *args, **kwargs))
+        resultado = await to_thread.run_sync(partial(func, *args, **kwargs))
     except Exception as exc:
         log.error("%s: %s", func.__name__, exc)
         raise
+    # Lo que Claude lee son tokens: sin sangrado y sin claves vacías (-30..-50 %).
+    return json.dumps(_compactar(resultado), ensure_ascii=False, separators=(",", ":"), default=str)
+
+
+def _vacio(valor: Any) -> bool:
+    """None, False, "" y contenedores vacíos; el 0 se conserva."""
+    return valor is None or valor is False or valor == "" or (isinstance(valor, (list, dict)) and not valor)
+
+
+def _compactar(valor: Any) -> Any:
+    if isinstance(valor, dict):
+        return {k: _compactar(v) for k, v in valor.items() if not _vacio(v)}
+    if isinstance(valor, list):
+        return [_compactar(v) for v in valor]
+    return valor
 
 
 def ruta_log() -> Path:
@@ -89,7 +105,7 @@ def activar_log() -> logging.Handler | None:
 @mcp.tool()
 async def list_projects(name: str | None = None, limit: int = 50):
     """Lista los proyectos de Odoo (opcionalmente filtrados por nombre), con su
-    número de tareas, responsable y URL."""
+    número de tareas y responsable. project_url es la plantilla de enlace: sustituye {id}."""
     return await _run(projects.list_projects, get_client(), name=name, limit=limit)
 
 
@@ -97,7 +113,8 @@ async def list_projects(name: str | None = None, limit: int = 50):
 async def get_board(project: str | int, max_tasks: int = 200):
     """Devuelve el tablero kanban completo de un proyecto (por nombre o id):
     columnas/etapas en orden con sus tarjetas (asignados, fecha límite, prioridad).
-    Si hay más tareas que max_tasks, lo indica en 'note'."""
+    Si hay más tareas que max_tasks, lo indica en 'note'. task_url es la plantilla
+    de enlace de las tarjetas: sustituye {id}. Los campos vacíos se omiten."""
     return await _run(projects.get_board, get_client(), project, max_tasks=max_tasks)
 
 
@@ -110,7 +127,8 @@ async def list_tasks(
     limit: int = 100,
 ):
     """Busca tareas con filtros opcionales: proyecto, etapa/columna, asignado
-    (nombre o login) y texto en el título."""
+    (nombre o login) y texto en el título. task_url es la plantilla de enlace:
+    sustituye {id}."""
     return await _run(
         projects.list_tasks,
         get_client(),
@@ -230,8 +248,9 @@ async def list_models(pattern: str | None = None, limit: int = 100):
 
 @mcp.tool()
 async def get_model_fields(model: str):
-    """Campos de un modelo con tipo, etiqueta, requerido y relación. Úsalo antes de
-    crear o actualizar registros de un modelo que no conozcas."""
+    """Campos de un modelo con tipo, etiqueta, requerido, relación y, en los de
+    selección, {valor: etiqueta}. Úsalo antes de crear o actualizar registros de
+    un modelo que no conozcas."""
     return await _run(generic.get_model_fields, get_client(), model)
 
 
@@ -240,12 +259,14 @@ async def search_records(
     model: str,
     domain: list[Any] | None = None,
     fields: list[str] | None = None,
-    limit: int = 80,
+    limit: int = 20,
     offset: int = 0,
     order: str | None = None,
 ):
     """Busca y lee registros de cualquier modelo con un dominio Odoo.
-    Ej.: model='res.partner', domain=[["is_company","=",true]], fields=["name","email"]."""
+    Ej.: model='res.partner', domain=[["is_company","=",true]], fields=["name","email"].
+    Pide siempre fields: sin ellos devuelve todos los campos simples (sin binarios,
+    html ni listas de ids), que son muchos. Los campos vacíos se omiten."""
     return await _run(
         generic.search_records,
         get_client(),
@@ -266,8 +287,8 @@ async def count_records(model: str, domain: list[Any] | None = None):
 
 @mcp.tool()
 async def read_records(model: str, ids: list[int], fields: list[str] | None = None):
-    """Lee registros por id. Sin fields devuelve todos los campos salvo los binarios
-    (imágenes, adjuntos)."""
+    """Lee registros por id. Sin fields devuelve todos los campos simples (sin
+    binarios, html ni listas de ids). Los campos vacíos se omiten."""
     return await _run(generic.read_records, get_client(), model, ids, fields=fields)
 
 

@@ -108,3 +108,21 @@ def test_list_models_con_patron():
     generic.list_models(client, pattern="sale")
     args, _ = client.last_call("ir.model", "search_read")
     assert args == [["|", ("model", "ilike", "sale"), ("name", "ilike", "sale")]]
+
+
+def test_get_model_fields_seleccion_como_dict_y_help_corto():
+    client = FakeClient(
+        {
+            ("sale.order", "fields_get"): {
+                "state": {
+                    "string": "Estado",
+                    "type": "selection",
+                    "selection": [["draft", "Borrador"], ["sale", "Confirmado"]],
+                    "help": "x" * 500,
+                }
+            }
+        }
+    )
+    campo = generic.get_model_fields(client, "sale.order")["state"]
+    assert campo["selection"] == {"draft": "Borrador", "sale": "Confirmado"}
+    assert len(campo["help"]) == 100

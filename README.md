@@ -124,7 +124,13 @@ usuario, o cuál es el error exacto:
 columnas), `list_tasks`, `get_task`, `create_task`, `update_task`, `move_task`
 (mover tarjeta de columna), `assign_task`, `add_comment`, `list_stages`,
 `create_stage`, `create_project`. Aceptan nombres o ids (proyectos, etapas,
-usuarios) y devuelven URLs directas a Odoo.
+usuarios) y devuelven URLs directas a Odoo (las listas, una plantilla
+`task_url`/`project_url` con `{id}` en vez de una URL por elemento).
+
+Las respuestas están pensadas para gastar pocos tokens: JSON sin sangrar, sin
+campos vacíos, listas con plantilla de URL, y en la capa genérica sin campos
+binarios, html ni listas de ids salvo que se pidan por nombre. Medido sobre una
+instancia real: un tablero de 200 tareas pasa de ~16.000 a ~5.400 tokens.
 
 **Genéricas (cualquier modelo)** — `list_models`, `get_model_fields`,
 `search_records`, `count_records`, `read_records`, `create_record`,

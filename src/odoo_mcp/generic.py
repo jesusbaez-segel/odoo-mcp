@@ -36,9 +36,9 @@ def get_model_fields(client: OdooClient, model: str) -> dict[str, dict]:
         if attrs.get("relation"):
             entry["relation"] = attrs["relation"]
         if attrs.get("selection"):
-            entry["selection"] = attrs["selection"]
+            entry["selection"] = dict(attrs["selection"])  # {valor: etiqueta}: menos tokens que pares
         if attrs.get("help"):
-            entry["help"] = attrs["help"]
+            entry["help"] = attrs["help"][:100]
         compact[name] = entry
     return compact
 
@@ -48,12 +48,12 @@ def search_records(
     model: str,
     domain: list | None = None,
     fields: list[str] | None = None,
-    limit: int = 80,
+    limit: int = 20,
     offset: int = 0,
     order: str | None = None,
 ) -> list[dict]:
     kwargs: dict[str, Any] = {
-        "fields": fields or _sin_binarios(client, model),
+        "fields": fields or _campos_simples(client, model),
         "limit": limit,
         "offset": offset,
     }
@@ -69,13 +69,16 @@ def count_records(client: OdooClient, model: str, domain: list | None = None) ->
 def read_records(
     client: OdooClient, model: str, ids: list[int], fields: list[str] | None = None
 ) -> list[dict]:
-    return client.execute(model, "read", [ids], {"fields": fields or _sin_binarios(client, model)})
+    return client.execute(model, "read", [ids], {"fields": fields or _campos_simples(client, model)})
 
 
-def _sin_binarios(client: OdooClient, model: str) -> list[str]:
-    """Sin lista de campos, Odoo devuelve también las imágenes en base64: megas
-    por registro que acaban en el contexto de Claude."""
-    return [n for n, a in client.fields_info(model).items() if a.get("type") != "binary"]
+_TIPOS_PESADOS = ("binary", "html", "one2many", "many2many")
+
+
+def _campos_simples(client: OdooClient, model: str) -> list[str]:
+    """Sin lista de campos, Odoo devuelve también imágenes en base64, html y
+    listas de ids sin nombre: medido, el 40 % de los tokens de cada registro."""
+    return [n for n, a in client.fields_info(model).items() if a.get("type") not in _TIPOS_PESADOS]
 
 
 def create_record(client: OdooClient, model: str, values: dict[str, Any]) -> int:

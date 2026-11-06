@@ -71,7 +71,8 @@ def test_get_board_agrupa_por_columna_en_orden():
     assert card["deadline"] == "2026-07-15"
     assert card["priority"] == "alta"
     assert card["state"] == "01_in_progress"
-    assert card["url"] == "http://odoo.test/web#id=100&model=project.task&view_type=form"
+    assert "url" not in card  # una plantilla para todas: menos tokens
+    assert board["task_url"] == "http://odoo.test/web#id={id}&model=project.task&view_type=form"
 
     sin_etapa = board["columns"][3]
     assert sin_etapa["tasks"][0]["assignees"] == ["Ana", "Luis"]
@@ -214,9 +215,11 @@ def test_list_tasks_combina_filtros():
         ]
     ]
     assert kwargs["limit"] == 10
-    assert result[0]["project"] == "Web Corporativa"
-    assert result[0]["stage"] == "En curso"
-    assert result[0]["assignees"] == ["Ana"]
+    assert result["task_url"].endswith("id={id}&model=project.task&view_type=form")
+    tarea = result["tasks"][0]
+    assert tarea["project"] == "Web Corporativa"
+    assert tarea["stage"] == "En curso"
+    assert tarea["assignees"] == ["Ana"]
 
 
 def test_list_tasks_etapa_sin_proyecto():
@@ -475,15 +478,10 @@ def test_list_projects_formatea():
         fields=MODERN_TASK_FIELDS,
     )
     result = projects.list_projects(client)
-    assert result == [
-        {
-            "id": 10,
-            "name": "Web",
-            "url": "http://odoo.test/web#id=10&model=project.project&view_type=form",
-            "task_count": 7,
-            "manager": "Ana",
-        }
-    ]
+    assert result == {
+        "project_url": "http://odoo.test/web#id={id}&model=project.project&view_type=form",
+        "projects": [{"id": 10, "name": "Web", "task_count": 7, "manager": "Ana"}],
+    }
 
 
 def test_get_task_detalle():

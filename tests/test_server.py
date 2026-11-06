@@ -138,3 +138,11 @@ def test_el_log_guarda_la_config_y_los_errores_de_las_tools(monkeypatch, tmp_pat
     assert "arrancado" in texto
     assert "config:" in texto
     assert "rompe: Autenticación fallida" in texto
+
+
+def test_las_tools_devuelven_json_compacto_sin_vacios():
+    assert server._compactar(
+        {"a": None, "b": False, "c": [], "d": "", "e": 0, "f": {"g": None, "h": 1}, "i": [{"j": False}]}
+    ) == {"e": 0, "f": {"h": 1}, "i": [{}]}
+    texto = asyncio.run(server._run(lambda: {"x": 1, "y": None, "z": "ñ"}))
+    assert texto == '{"x":1,"z":"ñ"}'
