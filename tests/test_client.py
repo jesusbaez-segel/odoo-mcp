@@ -119,3 +119,16 @@ def test_fields_info_cachea(stubbed_client):
     assert odoo.fields_info("project.task") == {"name": {"type": "char"}}
     assert odoo.fields_info("project.task") == {"name": {"type": "char"}}
     assert len(obj.calls) == 1
+
+
+def test_error_http_se_traduce(stubbed_client):
+    import http.client
+
+    odoo, common, _ = stubbed_client
+
+    def rompe(*args):
+        raise http.client.IncompleteRead(b"x")
+
+    common.handle_authenticate = rompe
+    with pytest.raises(OdooError, match="No se pudo conectar"):
+        odoo.execute("res.partner", "read", [[1]])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import threading
 import xmlrpc.client
 from typing import Any
@@ -34,15 +35,8 @@ class _TimeoutTransport(xmlrpc.client.Transport):
         return connection
 
 
-class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
-    def __init__(self, timeout: float):
-        super().__init__()
-        self._timeout = timeout
-
-    def make_connection(self, host):
-        connection = super().make_connection(host)
-        connection.timeout = self._timeout
-        return connection
+class _TimeoutSafeTransport(_TimeoutTransport, xmlrpc.client.SafeTransport):
+    """Por el orden de herencia, super().make_connection cae en SafeTransport."""
 
 
 def _make_proxy(base: str, path: str, timeout: float) -> xmlrpc.client.ServerProxy:
@@ -85,7 +79,7 @@ class OdooClient:
                 )
             except xmlrpc.client.Fault as fault:
                 raise OdooError(_fault_message(fault)) from fault
-            except (OSError, xmlrpc.client.Error) as exc:
+            except (OSError, http.client.HTTPException, xmlrpc.client.Error) as exc:
                 raise OdooError(
                     f"No se pudo conectar con Odoo en {self.base_url}: {exc}"
                 ) from exc
@@ -124,18 +118,26 @@ class OdooClient:
                 )
             except xmlrpc.client.Fault as fault:
                 raise OdooError(_fault_message(fault)) from fault
-            except (OSError, xmlrpc.client.Error) as exc:
+            except (OSError, http.client.HTTPException, xmlrpc.client.Error) as exc:
                 raise OdooError(f"Error de conexión con Odoo: {exc}") from exc
 
     def server_major(self) -> int:
         """Versión mayor del servidor Odoo (13, 14, ... ); 0 si no se pudo saber."""
-        if self._server_major is None:
-            try:
-                info = self._common.version()
-                self._server_major = int(info["server_version_info"][0])
-            except (OSError, xmlrpc.client.Error, KeyError, ValueError, TypeError):
-                self._server_major = 0
-        return self._server_major
+        with self._lock:  # misma conexión que authenticate: una petición a la vez
+            if self._server_major is None:
+                try:
+                    info = self._common.version()
+                    self._server_major = int(info["server_version_info"][0])
+                except (
+                    OSError,
+                    http.client.HTTPException,
+                    xmlrpc.client.Error,
+                    KeyError,
+                    ValueError,
+                    TypeError,
+                ):
+                    self._server_major = 0
+            return self._server_major
 
     def fields_info(self, model: str) -> dict[str, dict[str, Any]]:
         """fields_get cacheado con los atributos mínimos para adaptar el código

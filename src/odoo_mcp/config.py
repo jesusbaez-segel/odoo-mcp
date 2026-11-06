@@ -133,9 +133,9 @@ def load_settings(
         raise ConfigError(
             "Faltan datos de conexión: "
             + ", ".join(missing)
-            + f". Vuelve a ejecutar el asistente (instalar.bat) o edita {user_config_path()} "
-            "con ODOO_URL, ODOO_DB, ODOO_USERNAME y ODOO_API_KEY (o ODOO_PASSWORD). "
-            "La API key se genera en Odoo: Preferencias -> Seguridad de la cuenta -> Claves API."
+            + ". Abre de nuevo el instalador de odoo-mcp (odoo-mcp.exe, o el .command en Mac) "
+            f"y elige 'Cambiar mis datos de Odoo', o edita {user_config_path()} con "
+            "ODOO_URL, ODOO_DB, ODOO_USERNAME y ODOO_PASSWORD (o ODOO_API_KEY, desde Odoo 14)."
         )
     values["url"] = values["url"].rstrip("/")
     raw_timeout = env.get("ODOO_TIMEOUT", "").strip()

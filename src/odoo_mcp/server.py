@@ -69,6 +69,9 @@ def activar_log() -> logging.Handler | None:
     ruta = ruta_log()
     try:
         ruta.parent.mkdir(parents=True, exist_ok=True)
+        # shortcut: con Claude Desktop y Claude Code abiertos a la vez, en Windows la
+        # rotacion falla (el otro proceso tiene el archivo abierto) y el log sigue
+        # creciendo; pasar a un log por proceso si llega a molestar.
         handler = RotatingFileHandler(ruta, maxBytes=1_000_000, backupCount=1, encoding="utf-8")
     except OSError:
         return None  # sin log se sigue funcionando

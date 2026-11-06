@@ -129,3 +129,21 @@ def test_el_guion_de_deteccion_no_tiene_caracteres_raros():
     assert "WindowsApps" in guion
     assert "AnthropicClaude" in guion
     assert [c for c in guion if ord(c) < 32] == []
+
+
+def test_desinstalar_en_mac_conserva_config_env_hasta_que_se_pregunta(monkeypatch, tmp_path):
+    """En Mac el ejecutable y config.env comparten carpeta: borrar la carpeta
+    entera se llevaba la contrasena sin preguntar."""
+    simular_mac(monkeypatch, tmp_path)
+    carpeta = installer.destino_ejecutable().parent
+    carpeta.mkdir(parents=True)
+    installer.destino_ejecutable().write_bytes(b"exe")
+    config.user_config_path().write_text("ODOO_URL=x", encoding="utf-8")
+    monkeypatch.setattr(installer, "config_claude_code", lambda: tmp_path / "no.json")
+    monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [])
+    monkeypatch.setattr(installer, "preguntar", lambda *a, **k: "n")
+
+    assert installer.desinstalar() == 0
+
+    assert not installer.destino_ejecutable().exists()
+    assert config.user_config_path().exists()

@@ -51,7 +51,7 @@ def test_load_settings_faltantes():
     assert "ODOO_DB" in message
     assert "ODOO_USERNAME" in message
     assert "ODOO_API_KEY" in message
-    assert "instalar.bat" in message
+    assert "Cambiar mis datos de Odoo" in message
 
 
 def test_load_settings_timeout():

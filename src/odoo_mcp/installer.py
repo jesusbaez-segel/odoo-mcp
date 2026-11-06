@@ -384,10 +384,10 @@ def instalar_ejecutable() -> Path:
 # --- Registro en los clientes -------------------------------------------------
 
 
-# Rutas reales: la version de la Store instala en ...\WindowsApps\Claude_<ver>pp\,
-# la clasica en %LOCALAPPDATA%\AnthropicClaudepp-<ver>\. Se mira la ruta y no el
+# Rutas reales: la version de la Store instala en ...\WindowsApps\Claude_<ver>\app\,
+# la clasica en %LOCALAPPDATA%\AnthropicClaude\app-<ver>\. Se mira la ruta y no el
 # nombre porque en Windows Claude Code tambien se llama claude.exe.
-# Cadena literal (r""): sin ella, Python leeria el  de pp como el caracter BEL.
+# Cadena literal (r""): sin ella, Python leeria la "\a" de "\app" como el caracter BEL.
 GUION_DETECCION_WINDOWS = (
     "$n=0; Get-Process -Name Claude -ErrorAction SilentlyContinue | ForEach-Object {"
     " try { $r=$_.Path } catch { $r='' };"
@@ -538,10 +538,16 @@ def desinstalar() -> int:
     destino = destino_ejecutable()
     if destino.exists() and Path(sys.executable).resolve() != destino.resolve():
         try:
-            shutil.rmtree(destino.parent)
-            print(f"  Borrado {destino.parent}")
+            # Solo el archivo: en Mac config.env vive en la misma carpeta y se
+            # pregunta por el mas abajo.
+            destino.unlink()
+            print(f"  Borrado {destino}")
         except OSError:
-            aviso(f"  No pude borrar {destino.parent} (cierra Claude y reintenta)")
+            aviso(f"  No pude borrar {destino} (cierra Claude y reintenta)")
+        try:
+            destino.parent.rmdir()  # solo si quedo vacia
+        except OSError:
+            pass
     elif destino.exists():
         aviso(f"  {destino.parent} se borra al cerrar este programa: bórralo a mano si queda.")
 
