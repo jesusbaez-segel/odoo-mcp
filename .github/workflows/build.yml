@@ -43,9 +43,9 @@ jobs:
             ruta: dist/odoo-mcp
             # tar.gz y no el binario suelto: conserva el permiso de ejecucion
             publicar: dist/odoo-mcp-linux-x86_64.tar.gz
-          # macos-14 y posteriores son Apple Silicon (arm64)
+          # macos-15: Apple Silicon (arm64). macos-15 lo retiro GitHub en 2026-11
           - nombre: Mac Apple Silicon
-            so: macos-14
+            so: macos-15
             python: "3.12"
             guion: ./build.sh
             artefacto: odoo-mcp-mac-apple-silicon
@@ -59,7 +59,7 @@ jobs:
           # PyInstaller genera el binario de la arquitectura del Python que lo
           # ejecuta, y la prueba de humo corre tambien bajo Rosetta.
           - nombre: Mac Intel
-            so: macos-14
+            so: macos-15
             python: cpython-3.12-macos-x86_64-none
             guion: ./build.sh
             artefacto: odoo-mcp-mac-intel

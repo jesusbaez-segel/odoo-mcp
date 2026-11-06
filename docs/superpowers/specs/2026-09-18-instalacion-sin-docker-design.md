@@ -180,7 +180,7 @@ recibe: ninguno más allá de tener Claude.
 **Por qué CI y no un Mac**: PyInstaller no cruza plataformas. Sin un Mac a mano, la
 única forma de obtener el binario es compilarlo en un runner de Apple. El workflow
 `.github/workflows/build.yml` construye los tres a la vez: Windows
-(`windows-latest`) y los dos de Mac en `macos-14` (arm64). Se lanza a mano o al
+(`windows-latest`) y los dos de Mac en `macos-15` (arm64). Se lanza a mano o al
 publicar una etiqueta `vX.Y.Z`, que además adjunta los ejecutables a la Release.
 
 **Intel se compila en Apple Silicon bajo Rosetta 2**: los runners `macos-13`
