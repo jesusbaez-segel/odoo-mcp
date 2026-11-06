@@ -20,11 +20,21 @@ def test_search_records_pasa_dominio_y_kwargs():
     assert kwargs == {"fields": ["name"], "limit": 5, "offset": 10, "order": "name desc"}
 
 
-def test_search_records_sin_dominio_usa_lista_vacia():
-    client = FakeClient({("res.partner", "search_read"): []})
+PARTNER_FIELDS = {
+    "res.partner": {
+        "name": {"type": "char"},
+        "image_1920": {"type": "binary"},
+        "email": {"type": "char"},
+    }
+}
+
+
+def test_search_records_sin_dominio_ni_fields_excluye_binarios():
+    client = FakeClient({("res.partner", "search_read"): []}, fields=PARTNER_FIELDS)
     generic.search_records(client, "res.partner")
-    args, _ = client.last_call("res.partner", "search_read")
+    args, kwargs = client.last_call("res.partner", "search_read")
     assert args == [[]]
+    assert kwargs["fields"] == ["name", "email"]
 
 
 def test_count_records():
@@ -42,12 +52,12 @@ def test_count_records_sin_dominio():
     assert args == [[]]
 
 
-def test_read_records_sin_fields_no_pasa_kwargs():
-    client = FakeClient({("res.partner", "read"): [{"id": 3}]})
+def test_read_records_sin_fields_excluye_binarios():
+    client = FakeClient({("res.partner", "read"): [{"id": 3}]}, fields=PARTNER_FIELDS)
     generic.read_records(client, "res.partner", [3])
     args, kwargs = client.last_call("res.partner", "read")
     assert args == [[3]]
-    assert kwargs == {}
+    assert kwargs == {"fields": ["name", "email"]}
 
 
 def test_create_update_delete():

@@ -52,9 +52,11 @@ def search_records(
     offset: int = 0,
     order: str | None = None,
 ) -> list[dict]:
-    kwargs: dict[str, Any] = {"limit": limit, "offset": offset}
-    if fields:
-        kwargs["fields"] = fields
+    kwargs: dict[str, Any] = {
+        "fields": fields or _sin_binarios(client, model),
+        "limit": limit,
+        "offset": offset,
+    }
     if order:
         kwargs["order"] = order
     return client.execute(model, "search_read", [_as_domain(domain)], kwargs)
@@ -67,8 +69,13 @@ def count_records(client: OdooClient, model: str, domain: list | None = None) ->
 def read_records(
     client: OdooClient, model: str, ids: list[int], fields: list[str] | None = None
 ) -> list[dict]:
-    kwargs = {"fields": fields} if fields else {}
-    return client.execute(model, "read", [ids], kwargs)
+    return client.execute(model, "read", [ids], {"fields": fields or _sin_binarios(client, model)})
+
+
+def _sin_binarios(client: OdooClient, model: str) -> list[str]:
+    """Sin lista de campos, Odoo devuelve también las imágenes en base64: megas
+    por registro que acaban en el contexto de Claude."""
+    return [n for n, a in client.fields_info(model).items() if a.get("type") != "binary"]
 
 
 def create_record(client: OdooClient, model: str, values: dict[str, Any]) -> int:

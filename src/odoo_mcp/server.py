@@ -266,7 +266,8 @@ async def count_records(model: str, domain: list[Any] | None = None):
 
 @mcp.tool()
 async def read_records(model: str, ids: list[int], fields: list[str] | None = None):
-    """Lee registros por id. Sin fields devuelve todos los campos."""
+    """Lee registros por id. Sin fields devuelve todos los campos salvo los binarios
+    (imágenes, adjuntos)."""
     return await _run(generic.read_records, get_client(), model, ids, fields=fields)
 
 

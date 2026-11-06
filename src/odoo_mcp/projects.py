@@ -73,15 +73,18 @@ def _resolve_by_name(
             raise OdooError(f"No existe {what} con id {record_id}{scope}.{hint}")
         # Un string numérico puede ser un nombre ('2024'): probar por nombre.
     name = str(ref).strip()
-    domain = list(domain_extra or []) + [("name", "ilike", name)]
-    rows = client.execute(
-        model, "search_read", [domain], {"fields": ["name"], "limit": 10}
-    )
-    exact = [r for r in rows if str(r["name"]).strip().lower() == name.lower()]
-    if len(exact) == 1:
-        return exact[0]["id"], exact[0]["name"]
-    if len(rows) == 1:
-        return rows[0]["id"], rows[0]["name"]
+    # Igualdad primero: con muchos nombres parecidos, el exacto podría no entrar
+    # entre los 10 de 'contiene'.
+    for operator, limit in (("=ilike", 2), ("ilike", 10)):
+        domain = list(domain_extra or []) + [("name", operator, name)]
+        rows = client.execute(
+            model, "search_read", [domain], {"fields": ["name"], "limit": limit}
+        )
+        exact = [r for r in rows if str(r["name"]).strip().lower() == name.lower()]
+        if len(exact) == 1:
+            return exact[0]["id"], exact[0]["name"]
+        if len(rows) == 1:
+            return rows[0]["id"], rows[0]["name"]
     if not rows:
         raise OdooError(f"No se encontró {what} llamado {name!r}.{hint}")
     options = ", ".join(f"{r['name']!r} (id {r['id']})" for r in rows)
@@ -126,20 +129,21 @@ def resolve_user(client: OdooClient, user: str | int) -> tuple[int, str]:
             raise OdooError(f"No existe el usuario con id {user_id}.")
         # Un login puramente numérico ('1234') se busca por nombre/login.
     name = str(user).strip()
-    domain = ["|", ("name", "ilike", name), ("login", "ilike", name)]
-    rows = client.execute(
-        "res.users", "search_read", [domain], {"fields": ["name", "login"], "limit": 10}
-    )
-    exact = [
-        r
-        for r in rows
-        if str(r["name"]).strip().lower() == name.lower()
-        or str(r.get("login", "")).strip().lower() == name.lower()
-    ]
-    if len(exact) == 1:
-        return exact[0]["id"], exact[0]["name"]
-    if len(rows) == 1:
-        return rows[0]["id"], rows[0]["name"]
+    for operator, limit in (("=ilike", 2), ("ilike", 10)):  # igual que en _resolve_by_name
+        domain = ["|", ("name", operator, name), ("login", operator, name)]
+        rows = client.execute(
+            "res.users", "search_read", [domain], {"fields": ["name", "login"], "limit": limit}
+        )
+        exact = [
+            r
+            for r in rows
+            if str(r["name"]).strip().lower() == name.lower()
+            or str(r.get("login", "")).strip().lower() == name.lower()
+        ]
+        if len(exact) == 1:
+            return exact[0]["id"], exact[0]["name"]
+        if len(rows) == 1:
+            return rows[0]["id"], rows[0]["name"]
     if not rows:
         raise OdooError(f"No se encontró ningún usuario llamado {name!r}.")
     options = ", ".join(f"{r['name']!r} ({r['login']}, id {r['id']})" for r in rows)

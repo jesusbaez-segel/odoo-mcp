@@ -110,10 +110,11 @@ def test_parse_env_file_formatos():
                 "# comentario",
                 "",
                 "ODOO_URL=https://x.com",
-                'ODOO_DB="mi base"',
-                "export ODOO_USERNAME='ana@x.com'",
+                "ODOO_DB=mi base",
+                "export ODOO_USERNAME=ana@x.com",
                 "linea sin igual",
                 "ODOO_API_KEY=  clave con espacios  ",
+                "ODOO_PASSWORD='con comillas'",  # el asistente la escribe tal cual
             ]
         )
     )
@@ -122,6 +123,7 @@ def test_parse_env_file_formatos():
         "ODOO_DB": "mi base",
         "ODOO_USERNAME": "ana@x.com",
         "ODOO_API_KEY": "clave con espacios",
+        "ODOO_PASSWORD": "'con comillas'",
     }
 
 

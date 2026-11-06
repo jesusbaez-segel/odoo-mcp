@@ -35,6 +35,9 @@ def test_normalizar_url_anade_https_y_quita_barra():
     assert normalizar_url("miempresa.odoo.com") == "https://miempresa.odoo.com"
     assert normalizar_url("  https://x.com/  ") == "https://x.com"
     assert normalizar_url("http://localhost:8069") == "http://localhost:8069"
+    # Lo que se copia del navegador
+    assert normalizar_url("https://x.com/web/login") == "https://x.com"
+    assert normalizar_url("x.com/web#action=12&model=project.task") == "https://x.com"
 
 
 def test_normalizar_url_vacia():
@@ -313,6 +316,7 @@ def test_desinstalar_limpia_los_dos_clientes(tmp_path, monkeypatch):
     monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [json_desktop])
     monkeypatch.setattr(installer, "destino_ejecutable", lambda: tmp_path / "no-existe.exe")
     monkeypatch.setattr(installer, "user_config_path", lambda: tmp_path / "no-existe.env")
+    monkeypatch.setattr(installer, "claude_desktop_abierto", lambda: False)
 
     assert installer.desinstalar() == 0
 
@@ -402,3 +406,20 @@ def test_encuentra_claude_desktop_store_reciente_en_claude_data(windows, tmp_pat
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     assert configs_claude_desktop() == [carpeta / "claude_desktop_config.json"]
+
+
+def test_desinstalar_no_toca_nada_con_claude_desktop_abierto(tmp_path, monkeypatch):
+    json_desktop = tmp_path / "claude_desktop_config.json"
+    json_desktop.write_text('{"mcpServers":{"odoo":{}}}', encoding="utf-8")
+    exe = tmp_path / "odoo-mcp.exe"
+    exe.write_bytes(b"x")
+    monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [json_desktop])
+    monkeypatch.setattr(installer, "destino_ejecutable", lambda: exe)
+    monkeypatch.setattr(installer, "claude_desktop_abierto", lambda: True)
+    monkeypatch.setattr(installer, "preguntar", lambda *a, **k: "")
+
+    with pytest.raises(InstallerError, match="sigue abierto"):
+        installer.desinstalar()
+
+    assert "odoo" in json.loads(json_desktop.read_text(encoding="utf-8"))["mcpServers"]
+    assert exe.exists()

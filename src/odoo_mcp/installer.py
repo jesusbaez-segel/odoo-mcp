@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from getpass import getpass
 from pathlib import Path
@@ -147,12 +148,14 @@ def configs_claude_desktop() -> list[Path]:
 
 
 def normalizar_url(bruta: str) -> str:
-    url = bruta.strip().rstrip("/")
-    if not url:
-        raise InstallerError("No escribiste ninguna URL.")
+    url = bruta.strip()
     if not url.startswith(("http://", "https://")):
         url = f"https://{url}"
-    return url
+    partes = urllib.parse.urlsplit(url)
+    if not partes.netloc:
+        raise InstallerError("No escribiste ninguna URL.")
+    # Lo que se copia del navegador lleva /web/login o #action=...: solo sirve el host.
+    return f"{partes.scheme}://{partes.netloc}"
 
 
 def parsear_bases(payload: bytes) -> list[str]:
@@ -523,13 +526,19 @@ def asistente() -> int:
 def desinstalar() -> int:
     titulo("Desinstalar el MCP de Odoo")
     print()
+    rutas_desktop = configs_claude_desktop()
+    if rutas_desktop and not esperar_a_que_cierren_claude_desktop():
+        # Abierto, volvería a guardar la entrada 'odoo' apuntando a un exe borrado.
+        raise InstallerError(
+            "Claude Desktop sigue abierto. Ciérralo del todo y vuelve a elegir Desinstalar."
+        )
 
     if quitar_mcp(config_claude_code()):
         print("  Quitado de Claude Code")
     else:
         print(f"  Claude Code: {GRIS}no estaba configurado{FIN}")
 
-    quitado = [r for r in configs_claude_desktop() if quitar_mcp(r)]
+    quitado = [r for r in rutas_desktop if quitar_mcp(r)]
     if quitado:
         print("  Quitado de Claude Desktop")
     else:

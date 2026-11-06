@@ -61,9 +61,11 @@ def config_search_paths(environ: dict[str, str] | None = None) -> list[Path]:
 
 
 def parse_env_file(text: str) -> dict[str, str]:
-    """CLAVE=valor por línea. Admite comentarios con '#', 'export' al principio y
-    comillas envolventes. Las líneas que no encajan se ignoran: un archivo algo
-    sucio no debe impedir que el servidor arranque."""
+    """CLAVE=valor por línea. Admite comentarios con '#' y 'export' al principio.
+    Las comillas se conservan: el asistente escribe la contraseña tal cual y una
+    que empiece y acabe en comilla dejaría de funcionar. Las líneas que no
+    encajan se ignoran: un archivo algo sucio no debe impedir que el servidor
+    arranque."""
     values: dict[str, str] = {}
     for raw in text.splitlines():
         line = raw.strip()
@@ -75,10 +77,7 @@ def parse_env_file(text: str) -> dict[str, str]:
         key = key.strip()
         if not sep or not key:
             continue
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        values[key] = value
+        values[key] = value.strip()
     return values
 
 

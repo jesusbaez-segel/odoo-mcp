@@ -521,3 +521,17 @@ def test_get_task_inexistente():
     client = FakeClient({("project.task", "read"): []}, fields=MODERN_TASK_FIELDS)
     with pytest.raises(OdooError, match="No existe la tarea"):
         projects.get_task(client, 12345)
+
+
+def test_resolve_project_exacto_aunque_no_entre_entre_los_10_parecidos():
+    parecidos = [{"id": i, "name": f"Web {i}"} for i in range(10)]
+    client = FakeClient(
+        {
+            ("project.project", "search_read"): lambda args, kwargs: (
+                [{"id": 99, "name": "Web"}] if args[0][-1][1] == "=ilike" else parecidos
+            )
+        }
+    )
+    assert projects.resolve_project(client, "web") == (99, "Web")
+    args, kwargs = client.last_call("project.project", "search_read")
+    assert args[0] == [("name", "=ilike", "web")] and kwargs["limit"] == 2
