@@ -265,8 +265,9 @@ async def search_records(
 ):
     """Busca y lee registros de cualquier modelo con un dominio Odoo.
     Ej.: model='res.partner', domain=[["is_company","=",true]], fields=["name","email"].
-    Pide siempre fields: sin ellos devuelve todos los campos simples (sin binarios,
-    html ni listas de ids), que son muchos. Los campos vacíos se omiten."""
+    Pide siempre fields: sin ellos devuelve los campos almacenados simples (sin
+    calculados, binarios, html ni listas de ids), que son muchos. Los campos
+    vacíos se omiten."""
     return await _run(
         generic.search_records,
         get_client(),
@@ -287,8 +288,8 @@ async def count_records(model: str, domain: list[Any] | None = None):
 
 @mcp.tool()
 async def read_records(model: str, ids: list[int], fields: list[str] | None = None):
-    """Lee registros por id. Sin fields devuelve todos los campos simples (sin
-    binarios, html ni listas de ids). Los campos vacíos se omiten."""
+    """Lee registros por id. Sin fields devuelve los campos almacenados simples
+    (sin calculados, binarios, html ni listas de ids). Los campos vacíos se omiten."""
     return await _run(generic.read_records, get_client(), model, ids, fields=fields)
 
 

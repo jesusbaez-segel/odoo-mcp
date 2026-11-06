@@ -22,14 +22,15 @@ def test_search_records_pasa_dominio_y_kwargs():
 
 PARTNER_FIELDS = {
     "res.partner": {
-        "name": {"type": "char"},
-        "image_1920": {"type": "binary"},
-        "email": {"type": "char"},
+        "name": {"type": "char", "store": True},
+        "image_1920": {"type": "binary", "store": True},
+        "debit": {"type": "monetary", "store": False},  # calculado: exige contabilidad
+        "email": {"type": "char", "store": True},
     }
 }
 
 
-def test_search_records_sin_dominio_ni_fields_excluye_binarios():
+def test_search_records_sin_dominio_ni_fields_excluye_binarios_y_calculados():
     client = FakeClient({("res.partner", "search_read"): []}, fields=PARTNER_FIELDS)
     generic.search_records(client, "res.partner")
     args, kwargs = client.last_call("res.partner", "search_read")

@@ -144,6 +144,6 @@ class OdooClient:
         a la versión de Odoo (p. ej. user_ids vs user_id)."""
         if model not in self._fields_cache:
             self._fields_cache[model] = self.execute(
-                model, "fields_get", [], {"attributes": ["type", "string", "relation"]}
+                model, "fields_get", [], {"attributes": ["type", "string", "relation", "store"]}
             )
         return self._fields_cache[model]

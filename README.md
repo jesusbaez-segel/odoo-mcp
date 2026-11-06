@@ -129,7 +129,7 @@ usuarios) y devuelven URLs directas a Odoo (las listas, una plantilla
 
 Las respuestas están pensadas para gastar pocos tokens: JSON sin sangrar, sin
 campos vacíos, listas con plantilla de URL, y en la capa genérica sin campos
-binarios, html ni listas de ids salvo que se pidan por nombre. Medido sobre una
+calculados, binarios, html ni listas de ids salvo que se pidan por nombre. Medido sobre una
 instancia real: un tablero de 200 tareas pasa de ~16.000 a ~5.400 tokens.
 
 **Genéricas (cualquier modelo)** — `list_models`, `get_model_fields`,

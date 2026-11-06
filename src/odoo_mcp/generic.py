@@ -77,8 +77,14 @@ _TIPOS_PESADOS = ("binary", "html", "one2many", "many2many")
 
 def _campos_simples(client: OdooClient, model: str) -> list[str]:
     """Sin lista de campos, Odoo devuelve también imágenes en base64, html y
-    listas de ids sin nombre: medido, el 40 % de los tokens de cada registro."""
-    return [n for n, a in client.fields_info(model).items() if a.get("type") not in _TIPOS_PESADOS]
+    listas de ids sin nombre (medido, el 40 % de los tokens) y calcula campos
+    que exigen permisos de otros modelos: el saldo de un contacto falla para
+    quien no sea de contabilidad. Solo los almacenados y simples."""
+    return [
+        n
+        for n, a in client.fields_info(model).items()
+        if a.get("store") and a.get("type") not in _TIPOS_PESADOS
+    ]
 
 
 def create_record(client: OdooClient, model: str, values: dict[str, Any]) -> int:
