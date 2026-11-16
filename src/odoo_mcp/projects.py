@@ -181,8 +181,9 @@ def _card(task: dict, field: str, names: dict[int, str], client: OdooClient) -> 
         "name": task["name"],
         "assignees": assignees,
         "deadline": task.get("date_deadline") or None,
-        "priority": "alta" if task.get("priority") == "1" else "normal",
     }
+    if task.get("priority") == "1":
+        card["priority"] = "alta"  # la normal se omite: es la de casi todas
     if task.get("state"):
         card["state"] = task["state"]
     elif task.get("kanban_state"):
@@ -224,7 +225,7 @@ def list_projects(client: OdooClient, name: str | None = None, limit: int = 50) 
     return {"project_url": _url_template(client, "project.project"), "projects": result}
 
 
-def get_board(client: OdooClient, project: str | int, max_tasks: int = 200) -> dict:
+def get_board(client: OdooClient, project: str | int, max_tasks: int = 100) -> dict:
     project_id, project_name = resolve_project(client, project)
     stages = client.execute(
         "project.task.type",

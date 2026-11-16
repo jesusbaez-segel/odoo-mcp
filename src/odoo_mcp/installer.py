@@ -609,10 +609,11 @@ def menu() -> int:
     print("    1) Volver a registrarlo en Claude (sin cambiar mis datos)")
     print("    2) Cambiar mis datos de Odoo (reconfigurar)")
     print("    3) Comprobar la conexión")
-    print("    4) Desinstalar")
-    print("    5) Salir")
+    print("    4) Ver el registro de errores")
+    print("    5) Desinstalar")
+    print("    6) Salir")
     print()
-    opcion = preguntar("Qué quieres hacer (1-5)")
+    opcion = preguntar("Qué quieres hacer (1-6)")
     if opcion == "1":
         return reregistrar()
     if opcion == "2":
@@ -622,7 +623,24 @@ def menu() -> int:
 
         return comprobar_conexion_cli()
     if opcion == "4":
+        return abrir_log()
+    if opcion == "5":
         return desinstalar()
+    return 0
+
+
+def abrir_log() -> int:
+    from .server import ruta_log
+
+    ruta = ruta_log()
+    if not ruta.exists():
+        aviso(f"  Todavía no hay registro ({ruta}): Claude aún no ha arrancado el servidor.")
+        return 0
+    print(f"  {ruta}")
+    if sys.platform == "win32":
+        os.startfile(ruta)  # Bloc de notas o lo que tenga asociado .log
+    elif sys.platform == "darwin":
+        subprocess.run(["open", str(ruta)])
     return 0
 
 

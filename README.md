@@ -26,7 +26,7 @@ El mismo archivo es el instalador y el servidor: cuando lo abres tú con doble c
 conectada a una tubería) hace de servidor MCP.
 
 Si vuelves a abrirlo cuando ya está instalado, sale un menú: reconfigurar,
-comprobar la conexión, desinstalar o salir.
+comprobar la conexión, ver el registro de errores, desinstalar o salir.
 
 ## Instalación (macOS)
 
@@ -153,7 +153,7 @@ Ejemplos de peticiones a Claude:
 | `--mcp` | Fuerza el servidor MCP por stdio (es lo que se registra en Claude) |
 | `--instalar` | Fuerza el asistente de instalación |
 | `--registrar` | Vuelve a registrarlo en Claude sin volver a pedir los datos |
-| `--menu` | Abre el menú (registrar, reconfigurar, comprobar, desinstalar) |
+| `--menu` | Abre el menú (registrar, reconfigurar, comprobar, ver el registro, desinstalar) |
 | `--desinstalar` | Lo quita de Claude y borra la instalación |
 | `--check` | Comprueba la conexión con Odoo y sale |
 | `--version`, `--help` | Lo que parece |

@@ -19,7 +19,7 @@ def list_models(client: OdooClient, pattern: str | None = None, limit: int = 100
     )
 
 
-def get_model_fields(client: OdooClient, model: str) -> dict[str, dict]:
+def get_model_fields(client: OdooClient, model: str, pattern: str | None = None) -> dict[str, dict]:
     info = client.execute(
         model,
         "fields_get",
@@ -28,6 +28,8 @@ def get_model_fields(client: OdooClient, model: str) -> dict[str, dict]:
     )
     compact: dict[str, dict] = {}
     for name, attrs in info.items():
+        if pattern and pattern.lower() not in f"{name} {attrs.get('string', '')}".lower():
+            continue
         entry = {"type": attrs.get("type"), "label": attrs.get("string")}
         if attrs.get("required"):
             entry["required"] = True

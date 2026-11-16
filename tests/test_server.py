@@ -146,3 +146,27 @@ def test_las_tools_devuelven_json_compacto_sin_vacios():
     ) == {"e": 0, "f": {"h": 1}, "i": [{}]}
     texto = asyncio.run(server._run(lambda: {"x": 1, "y": None, "z": "ñ"}))
     assert texto == '{"x":1,"z":"ñ"}'
+
+
+def test_tras_fallo_de_autenticacion_se_relee_la_configuracion(monkeypatch):
+    from odoo_mcp.client import AuthError
+
+    monkeypatch.setattr(server, "_client", object())
+
+    def rompe():
+        raise AuthError("Autenticación fallida")
+
+    with pytest.raises(AuthError):
+        asyncio.run(server._run(rompe))
+    assert server._client is None
+
+
+def test_los_esquemas_de_las_tools_van_sin_title_ni_null():
+    esquemas = {t.name: t.inputSchema for t in asyncio.run(server.mcp.list_tools())}
+    tarea = esquemas["update_task"]
+    assert "title" not in tarea
+    assert tarea["properties"]["stage"] == {"type": "string"}
+    assert tarea["properties"]["task_id"] == {"type": "integer"}
+    assert tarea["required"] == ["task_id"]
+    proyecto = esquemas["get_board"]["properties"]["project"]
+    assert proyecto["anyOf"] == [{"type": "string"}, {"type": "integer"}]

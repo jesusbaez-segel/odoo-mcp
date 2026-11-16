@@ -127,3 +127,16 @@ def test_get_model_fields_seleccion_como_dict_y_help_corto():
     campo = generic.get_model_fields(client, "sale.order")["state"]
     assert campo["selection"] == {"draft": "Borrador", "sale": "Confirmado"}
     assert len(campo["help"]) == 100
+
+
+def test_get_model_fields_filtra_por_patron_en_nombre_o_etiqueta():
+    client = FakeClient(
+        {
+            ("res.partner", "fields_get"): {
+                "email": {"string": "Correo", "type": "char"},
+                "phone": {"string": "Teléfono", "type": "char"},
+                "x_dato": {"string": "Correo alternativo", "type": "char"},
+            }
+        }
+    )
+    assert list(generic.get_model_fields(client, "res.partner", pattern="correo")) == ["email", "x_dato"]

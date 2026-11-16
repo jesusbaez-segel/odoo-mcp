@@ -76,6 +76,7 @@ def test_get_board_agrupa_por_columna_en_orden():
 
     sin_etapa = board["columns"][3]
     assert sin_etapa["tasks"][0]["assignees"] == ["Ana", "Luis"]
+    assert "priority" not in sin_etapa["tasks"][0]  # la normal se omite
     assert board["columns"][2]["folded"] is True
 
 

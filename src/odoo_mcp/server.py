@@ -19,7 +19,7 @@ from anyio import to_thread
 from mcp.server.fastmcp import FastMCP
 
 from . import __version__, generic, projects, stdio_filter
-from .client import OdooClient, OdooError
+from .client import AuthError, OdooClient, OdooError
 from .config import ConfigError, load_settings, user_config_path
 
 log = logging.getLogger("odoo_mcp")
@@ -53,10 +53,13 @@ def get_client() -> OdooClient:
 
 
 async def _run(func, *args, **kwargs):
+    global _client
     try:
         resultado = await to_thread.run_sync(partial(func, *args, **kwargs))
     except Exception as exc:
         log.error("%s: %s", func.__name__, exc)
+        if isinstance(exc, AuthError):
+            _client = None  # la próxima llamada relee config.env: quizá acaban de corregirlo
         raise
     # Lo que Claude lee son tokens: sin sangrado y sin claves vacías (-30..-50 %).
     return json.dumps(_compactar(resultado), ensure_ascii=False, separators=(",", ":"), default=str)
@@ -110,11 +113,12 @@ async def list_projects(name: str | None = None, limit: int = 50):
 
 
 @mcp.tool()
-async def get_board(project: str | int, max_tasks: int = 200):
+async def get_board(project: str | int, max_tasks: int = 100):
     """Devuelve el tablero kanban completo de un proyecto (por nombre o id):
-    columnas/etapas en orden con sus tarjetas (asignados, fecha límite, prioridad).
-    Si hay más tareas que max_tasks, lo indica en 'note'. task_url es la plantilla
-    de enlace de las tarjetas: sustituye {id}. Los campos vacíos se omiten."""
+    columnas/etapas en orden con sus tarjetas (asignados, fecha límite; priority
+    solo aparece cuando es alta). Si hay más tareas que max_tasks, lo indica en
+    'note'. task_url es la plantilla de enlace de las tarjetas: sustituye {id}.
+    Los campos vacíos se omiten."""
     return await _run(projects.get_board, get_client(), project, max_tasks=max_tasks)
 
 
@@ -247,11 +251,12 @@ async def list_models(pattern: str | None = None, limit: int = 100):
 
 
 @mcp.tool()
-async def get_model_fields(model: str):
+async def get_model_fields(model: str, pattern: str | None = None):
     """Campos de un modelo con tipo, etiqueta, requerido, relación y, en los de
     selección, {valor: etiqueta}. Úsalo antes de crear o actualizar registros de
-    un modelo que no conozcas."""
-    return await _run(generic.get_model_fields, get_client(), model)
+    un modelo que no conozcas. Los modelos grandes tienen cientos de campos: con
+    pattern devuelve solo los que contienen ese texto en el nombre o la etiqueta."""
+    return await _run(generic.get_model_fields, get_client(), model, pattern=pattern)
 
 
 @mcp.tool()
@@ -324,6 +329,27 @@ async def call_method(
     el primer elemento de args es la lista de ids.
     Ej.: model='sale.order', method='action_confirm', args=[[42]]."""
     return await _run(generic.call_method, get_client(), model, method, args=args, kwargs=kwargs)
+
+
+def _acortar_esquema(esquema: dict) -> None:
+    """Quita lo que pydantic añade y Claude no necesita: 'title' y el
+    'anyOf [X, null]' de cada parámetro opcional. Medido: el esquema de las
+    herramientas era el 70 % del coste fijo por conversación."""
+    esquema.pop("title", None)
+    for parametro in esquema.get("properties", {}).values():
+        parametro.pop("title", None)
+        if parametro.get("default") is None:
+            parametro.pop("default", None)
+        tipos = [t for t in parametro.get("anyOf", []) if t.get("type") != "null"]
+        if len(tipos) == 1:
+            parametro.pop("anyOf")
+            parametro.update(tipos[0])
+        elif tipos:
+            parametro["anyOf"] = tipos
+
+
+for _tool in mcp._tool_manager.list_tools():  # el esquema solo se usa para anunciarlas
+    _acortar_esquema(_tool.parameters)
 
 
 USAGE = """odoo-mcp - servidor MCP de Odoo para Claude

@@ -14,6 +14,10 @@ class OdooError(Exception):
     """Error devuelto por Odoo o por la conexión, con mensaje legible."""
 
 
+class AuthError(OdooError):
+    """Odoo rechazó usuario o contraseña."""
+
+
 def _fault_message(fault: xmlrpc.client.Fault) -> str:
     text = str(fault.faultString or "").strip()
     lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -86,7 +90,7 @@ class OdooClient:
             if not uid:
                 # Claude repite este texto al usuario: debe decir qué datos se usaron y
                 # cómo corregirlos (pedir "una clave API" no sirve en Odoo 13).
-                raise OdooError(
+                raise AuthError(
                     f"Autenticación fallida: Odoo rechaza el usuario "
                     f"'{self._settings.username}' o su contraseña en la base "
                     f"'{self._settings.db}' ({self.base_url}). Usa la contraseña con la que "
