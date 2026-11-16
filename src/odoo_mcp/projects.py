@@ -61,8 +61,10 @@ def _resolve_by_name(
     domain_extra: list | None = None,
     what: str = "registro",
     hint: str = "",
+    fields: tuple[str, ...] = ("name",),
 ) -> tuple[int, str]:
-    """Resuelve una referencia por id o por nombre (exacto primero, ilike después)."""
+    """Resuelve una referencia por id o por texto (igualdad primero, 'contiene'
+    después) en cualquiera de `fields` (p. ej. nombre o login)."""
     if isinstance(ref, int) or (isinstance(ref, str) and ref.strip().isdecimal()):
         record_id = int(str(ref).strip())
         domain = [("id", "=", record_id)] + list(domain_extra or [])
@@ -79,19 +81,28 @@ def _resolve_by_name(
             raise OdooError(f"No existe {what} con id {record_id}{scope}.{hint}")
         # Un string numérico puede ser un nombre ('2024'): probar por nombre.
     name = str(ref).strip()
+
+    def es_exacto(row: dict) -> bool:
+        return any(str(row.get(f) or "").strip().lower() == name.lower() for f in fields)
+
     # Igualdad primero: con muchos nombres parecidos, el exacto podría no entrar
     # entre los 10 de 'contiene'.
     for operator, limit in (("=ilike", 2), ("ilike", 10)):
-        domain = list(domain_extra or []) + [("name", operator, name)]
-        rows = client.execute(model, "search_read", [domain], {"fields": ["name"], "limit": limit})
-        exact = [r for r in rows if str(r["name"]).strip().lower() == name.lower()]
+        domain = list(domain_extra or []) + ["|"] * (len(fields) - 1)
+        domain += [(f, operator, name) for f in fields]
+        rows = client.execute(
+            model, "search_read", [domain], {"fields": list(fields), "limit": limit}
+        )
+        exact = [r for r in rows if es_exacto(r)]
         if len(exact) == 1:
             return exact[0]["id"], exact[0]["name"]
         if len(rows) == 1:
             return rows[0]["id"], rows[0]["name"]
     if not rows:
         raise OdooError(f"No se encontró {what} llamado {name!r}.{hint}")
-    options = ", ".join(f"{r['name']!r} (id {r['id']})" for r in rows)
+    options = ", ".join(
+        f"{r['name']!r} ({''.join(f'{r[f]}, ' for f in fields[1:])}id {r['id']})" for r in rows
+    )
     raise OdooError(f"Hay varios {what}s que coinciden con {name!r}: {options}. Usa el id.")
 
 
@@ -117,39 +128,7 @@ def resolve_stage(client: OdooClient, project_id: int, stage: str | int) -> tupl
 
 
 def resolve_user(client: OdooClient, user: str | int) -> tuple[int, str]:
-    if isinstance(user, int) or (isinstance(user, str) and user.strip().isdecimal()):
-        user_id = int(str(user).strip())
-        rows = client.execute(
-            "res.users",
-            "search_read",
-            [[("id", "=", user_id)]],
-            {"fields": ["name"], "limit": 1, "context": {"active_test": False}},
-        )
-        if rows:
-            return user_id, rows[0]["name"]
-        if isinstance(user, int):
-            raise OdooError(f"No existe el usuario con id {user_id}.")
-        # Un login puramente numérico ('1234') se busca por nombre/login.
-    name = str(user).strip()
-    for operator, limit in (("=ilike", 2), ("ilike", 10)):  # igual que en _resolve_by_name
-        domain = ["|", ("name", operator, name), ("login", operator, name)]
-        rows = client.execute(
-            "res.users", "search_read", [domain], {"fields": ["name", "login"], "limit": limit}
-        )
-        exact = [
-            r
-            for r in rows
-            if str(r["name"]).strip().lower() == name.lower()
-            or str(r.get("login", "")).strip().lower() == name.lower()
-        ]
-        if len(exact) == 1:
-            return exact[0]["id"], exact[0]["name"]
-        if len(rows) == 1:
-            return rows[0]["id"], rows[0]["name"]
-    if not rows:
-        raise OdooError(f"No se encontró ningún usuario llamado {name!r}.")
-    options = ", ".join(f"{r['name']!r} ({r['login']}, id {r['id']})" for r in rows)
-    raise OdooError(f"Hay varios usuarios que coinciden con {name!r}: {options}. Usa el id.")
+    return _resolve_by_name(client, "res.users", user, what="usuario", fields=("name", "login"))
 
 
 def _assignee_names(client: OdooClient, tasks: list[dict], field: str) -> dict[int, str]:

@@ -500,8 +500,8 @@ def asistente() -> int:
             f"{exc}\n      Revisa el email, la contraseña y que la base '{db}' sea la correcta."
         ) from exc
     print(f"      {VERDE}Acceso verificado: eres {nombre} (Odoo {version or '?'}).{FIN}")
-    if aviso_version(version):
-        aviso(f"      {aviso_version(version)}")
+    if texto := aviso_version(version):
+        aviso(f"      {texto}")
 
     paso("[4/5] Guardando tu configuración...")
     ruta_config = user_config_path()
