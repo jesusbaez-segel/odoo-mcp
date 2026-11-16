@@ -17,6 +17,7 @@ from typing import Any
 
 from anyio import to_thread
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from . import __version__, generic, projects, stdio_filter
 from .client import AuthError, OdooClient, OdooError
@@ -37,6 +38,11 @@ mcp = FastMCP(
 )
 
 _client: OdooClient | None = None
+
+# Pistas para el cliente MCP: qué tools solo leen y cuáles pueden destruir datos.
+LECTURA = ToolAnnotations(readOnlyHint=True)
+ESCRITURA = ToolAnnotations(destructiveHint=False)
+PELIGROSA = ToolAnnotations(destructiveHint=True)
 
 
 def get_client() -> OdooClient:
@@ -110,14 +116,14 @@ def activar_log() -> logging.Handler | None:
 # --- Proyectos y tableros -----------------------------------------------------
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def list_projects(name: str | None = None, limit: int = 50):
     """Lista los proyectos de Odoo (opcionalmente filtrados por nombre), con su
     número de tareas y responsable. project_url es la plantilla de enlace: sustituye {id}."""
     return await _run(projects.list_projects, get_client(), name=name, limit=limit)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def get_board(project: str | int, max_tasks: int = 100):
     """Devuelve el tablero kanban completo de un proyecto (por nombre o id):
     columnas/etapas en orden con sus tarjetas (asignados, fecha límite; priority
@@ -127,7 +133,7 @@ async def get_board(project: str | int, max_tasks: int = 100):
     return await _run(projects.get_board, get_client(), project, max_tasks=max_tasks)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def list_tasks(
     project: str | int | None = None,
     stage: str | None = None,
@@ -137,7 +143,7 @@ async def list_tasks(
 ):
     """Busca tareas con filtros opcionales: proyecto, etapa/columna, asignado
     (nombre o login) y texto en el título. task_url es la plantilla de enlace:
-    sustituye {id}."""
+    sustituye {id}. has_more=true si hay más tareas que limit: afina los filtros."""
     return await _run(
         projects.list_tasks,
         get_client(),
@@ -149,14 +155,14 @@ async def list_tasks(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def get_task(task_id: int):
     """Detalle completo de una tarea: descripción, etapa, asignados, etiquetas,
     fechas y URL."""
     return await _run(projects.get_task, get_client(), task_id)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def create_task(
     project: str | int,
     name: str,
@@ -184,7 +190,7 @@ async def create_task(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def update_task(
     task_id: int,
     name: str | None = None,
@@ -207,39 +213,39 @@ async def update_task(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def move_task(task_id: int, stage: str | int):
     """Mueve una tarjeta a otra columna del tablero (etapa por nombre o id)."""
     return await _run(projects.move_task, get_client(), task_id, stage)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def assign_task(task_id: int, assignees: list[str], replace: bool = True):
     """Asigna usuarios a una tarea (por nombre, login o id). Con replace=False los
     añade sin quitar los actuales."""
     return await _run(projects.assign_task, get_client(), task_id, assignees, replace=replace)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def add_comment(task_id: int, body: str):
     """Publica un comentario en el hilo de mensajes de una tarea (admite HTML)."""
     return await _run(projects.add_comment, get_client(), task_id, body)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def list_stages(project: str | int):
     """Lista las columnas/etapas del tablero de un proyecto con su número de tareas."""
     return await _run(projects.list_stages, get_client(), project)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def create_stage(project: str | int, name: str, sequence: int | None = None):
     """Añade una columna/etapa al tablero de un proyecto. sequence controla el orden
     (menor = más a la izquierda)."""
     return await _run(projects.create_stage, get_client(), project, name, sequence=sequence)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def create_project(name: str, description: str | None = None):
     """Crea un proyecto nuevo. Después añade columnas con create_stage."""
     return await _run(projects.create_project, get_client(), name, description=description)
@@ -248,14 +254,14 @@ async def create_project(name: str, description: str | None = None):
 # --- Capa genérica (cualquier modelo de Odoo) ---------------------------------
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def list_models(pattern: str | None = None, limit: int = 100):
     """Lista los modelos instalados en Odoo (nombre técnico y etiqueta), filtrables
     por texto. Ej.: pattern='sale' -> sale.order, sale.order.line, ..."""
     return await _run(generic.list_models, get_client(), pattern=pattern, limit=limit)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def get_model_fields(model: str, pattern: str | None = None):
     """Campos de un modelo con tipo, etiqueta, requerido, relación y, en los de
     selección, {valor: etiqueta}. Úsalo antes de crear o actualizar registros de
@@ -264,7 +270,7 @@ async def get_model_fields(model: str, pattern: str | None = None):
     return await _run(generic.get_model_fields, get_client(), model, pattern=pattern)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def search_records(
     model: str,
     domain: list[Any] | None = None,
@@ -277,7 +283,8 @@ async def search_records(
     Ej.: model='res.partner', domain=[["is_company","=",true]], fields=["name","email"].
     Pide siempre fields: sin ellos devuelve los campos almacenados simples (sin
     calculados, binarios, html ni listas de ids), que son muchos. Los campos
-    vacíos se omiten."""
+    vacíos se omiten. Devuelve {records: [...]} y has_more=true si hay más:
+    repite con offset += limit."""
     return await _run(
         generic.search_records,
         get_client(),
@@ -290,40 +297,40 @@ async def search_records(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def count_records(model: str, domain: list[Any] | None = None):
     """Cuenta los registros que cumplen un dominio Odoo."""
     return await _run(generic.count_records, get_client(), model, domain=domain)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LECTURA)
 async def read_records(model: str, ids: list[int], fields: list[str] | None = None):
     """Lee registros por id. Sin fields devuelve los campos almacenados simples
     (sin calculados, binarios, html ni listas de ids). Los campos vacíos se omiten."""
     return await _run(generic.read_records, get_client(), model, ids, fields=fields)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def create_record(model: str, values: dict[str, Any]):
     """Crea un registro y devuelve su id. Para relaciones many2one pasa el id;
     para many2many usa comandos Odoo, p. ej. [[6,0,[ids]]]."""
     return await _run(generic.create_record, get_client(), model, values)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ESCRITURA)
 async def update_records(model: str, ids: list[int], values: dict[str, Any]):
     """Escribe los mismos valores en todos los registros indicados."""
     return await _run(generic.update_records, get_client(), model, ids, values)
 
 
-@mcp.tool()
+@mcp.tool(annotations=PELIGROSA)
 async def delete_records(model: str, ids: list[int]):
     """Elimina registros de forma permanente. Confirma con el usuario antes de usar
     esta herramienta."""
     return await _run(generic.delete_records, get_client(), model, ids)
 
 
-@mcp.tool()
+@mcp.tool(annotations=PELIGROSA)
 async def call_method(
     model: str,
     method: str,

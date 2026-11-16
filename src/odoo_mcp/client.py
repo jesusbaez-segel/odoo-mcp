@@ -18,6 +18,12 @@ class AuthError(OdooError):
     """Odoo rechazó usuario o contraseña."""
 
 
+def paginar(filas: list, limit: int) -> dict:
+    """Para listas pedidas con limit + 1: si sobra una fila, hay más. Evita un
+    search_count por consulta y Claude sabe que el resultado está recortado."""
+    return {"has_more": True} if len(filas) > limit else {}
+
+
 def _fault_message(fault: xmlrpc.client.Fault) -> str:
     text = str(fault.faultString or "").strip()
     lines = [line.strip() for line in text.splitlines() if line.strip()]

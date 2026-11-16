@@ -214,7 +214,8 @@ def test_list_tasks_combina_filtros():
             ("name", "ilike", "portada"),
         ]
     ]
-    assert kwargs["limit"] == 10
+    assert kwargs["limit"] == 11  # una de más para saber si hay más páginas
+    assert "has_more" not in result
     assert result["task_url"].endswith("id={id}&model=project.task&view_type=form")
     tarea = result["tasks"][0]
     assert tarea["project"] == "Web Corporativa"

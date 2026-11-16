@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .client import OdooClient
+from .client import OdooClient, paginar
 
 
 def list_models(client: OdooClient, pattern: str | None = None, limit: int = 100) -> list[dict]:
@@ -54,15 +54,16 @@ def search_records(
     limit: int = 20,
     offset: int = 0,
     order: str | None = None,
-) -> list[dict]:
+) -> dict:
     kwargs: dict[str, Any] = {
         "fields": fields or _campos_simples(client, model),
-        "limit": limit,
+        "limit": limit + 1,
         "offset": offset,
     }
     if order:
         kwargs["order"] = order
-    return client.execute(model, "search_read", [_as_domain(domain)], kwargs)
+    rows = client.execute(model, "search_read", [_as_domain(domain)], kwargs)
+    return {"records": rows[:limit], **paginar(rows, limit)}
 
 
 def count_records(client: OdooClient, model: str, domain: list | None = None) -> int:

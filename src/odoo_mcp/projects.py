@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .client import OdooClient, OdooError
+from .client import OdooClient, OdooError, paginar
 
 _PRIORITY_ALIASES = {
     "0": "0",
@@ -202,17 +202,21 @@ def list_projects(client: OdooClient, name: str | None = None, limit: int = 50) 
         "project.project",
         "search_read",
         [domain],
-        {"fields": fields, "limit": limit, "order": "name"},
+        {"fields": fields, "limit": limit + 1, "order": "name"},
     )
     result = []
-    for row in rows:
+    for row in rows[:limit]:
         item = {"id": row["id"], "name": row["name"]}
         if "task_count" in row:
             item["task_count"] = row["task_count"]
         if row.get("user_id"):
             item["manager"] = row["user_id"][1]
         result.append(item)
-    return {"project_url": _url_template(client, "project.project"), "projects": result}
+    return {
+        "project_url": _url_template(client, "project.project"),
+        "projects": result,
+        **paginar(rows, limit),
+    }
 
 
 def get_board(client: OdooClient, project: str | int, max_tasks: int = 100) -> dict:
@@ -307,18 +311,22 @@ def list_tasks(
         "project.task",
         "search_read",
         [domain],
-        {"fields": fields, "limit": limit, "order": "project_id asc, sequence asc, id asc"},
+        {"fields": fields, "limit": limit + 1, "order": "project_id asc, sequence asc, id asc"},
     )
     names = _assignee_names(client, tasks, afield)
     result = []
-    for task in tasks:
+    for task in tasks[:limit]:
         card = _card(task, afield, names, client)
         if task.get("project_id"):
             card["project"] = task["project_id"][1]
         if task.get("stage_id"):
             card["stage"] = task["stage_id"][1]
         result.append(card)
-    return {"task_url": _url_template(client, "project.task"), "tasks": result}
+    return {
+        "task_url": _url_template(client, "project.task"),
+        "tasks": result,
+        **paginar(tasks, limit),
+    }
 
 
 def get_task(client: OdooClient, task_id: int) -> dict:

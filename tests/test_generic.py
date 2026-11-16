@@ -13,10 +13,18 @@ def test_search_records_pasa_dominio_y_kwargs():
         offset=10,
         order="name desc",
     )
-    assert result == [{"id": 1, "name": "ACME"}]
+    assert result == {"records": [{"id": 1, "name": "ACME"}]}
     args, kwargs = client.last_call("res.partner", "search_read")
     assert args == [[["is_company", "=", True]]]
-    assert kwargs == {"fields": ["name"], "limit": 5, "offset": 10, "order": "name desc"}
+    # limit + 1: la fila de más solo sirve para saber si hay más páginas
+    assert kwargs == {"fields": ["name"], "limit": 6, "offset": 10, "order": "name desc"}
+
+
+def test_search_records_avisa_cuando_hay_mas():
+    filas = [{"id": i} for i in range(4)]
+    client = FakeClient({("res.partner", "search_read"): filas})
+    result = generic.search_records(client, "res.partner", fields=["name"], limit=3)
+    assert result == {"records": filas[:3], "has_more": True}
 
 
 PARTNER_FIELDS = {

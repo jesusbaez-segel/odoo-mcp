@@ -127,6 +127,10 @@ columnas), `list_tasks`, `get_task`, `create_task`, `update_task`, `move_task`
 usuarios) y devuelven URLs directas a Odoo (las listas, una plantilla
 `task_url`/`project_url` con `{id}` en vez de una URL por elemento).
 
+Las listas avisan con `has_more` cuando el resultado quedó recortado por
+`limit`, y cada herramienta declara si solo lee o si puede borrar
+(anotaciones MCP), para que el cliente pida confirmación donde toca.
+
 Las respuestas están pensadas para gastar pocos tokens: JSON sin sangrar, sin
 campos vacíos, listas con plantilla de URL, y en la capa genérica sin campos
 calculados, binarios, html ni listas de ids salvo que se pidan por nombre. Medido sobre una
