@@ -105,7 +105,7 @@ def test_entorno_explicito_no_lee_archivos_del_sistema():
 
 def test_parse_env_file_formatos():
     values = parse_env_file(
-        '\n'.join(
+        "\n".join(
             [
                 "# comentario",
                 "",

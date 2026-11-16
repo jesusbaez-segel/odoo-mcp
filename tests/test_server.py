@@ -5,11 +5,10 @@ import logging
 
 import pytest
 
+from fakes import MODERN_TASK_FIELDS, FakeClient
 from odoo_mcp import server
 from odoo_mcp.client import OdooError
 from odoo_mcp.config import Settings
-
-from fakes import MODERN_TASK_FIELDS, FakeClient
 
 EXPECTED_TOOLS = {
     "list_projects",
@@ -59,9 +58,7 @@ def test_move_task_de_punta_a_punta(monkeypatch):
     )
     monkeypatch.setattr(server, "_client", fake)
 
-    result = asyncio.run(
-        server.mcp.call_tool("move_task", {"task_id": 100, "stage": "En curso"})
-    )
+    result = asyncio.run(server.mcp.call_tool("move_task", {"task_id": 100, "stage": "En curso"}))
 
     assert "En curso" in str(result)
     args, _ = fake.last_call("project.task", "write")
@@ -142,7 +139,15 @@ def test_el_log_guarda_la_config_y_los_errores_de_las_tools(monkeypatch, tmp_pat
 
 def test_las_tools_devuelven_json_compacto_sin_vacios():
     assert server._compactar(
-        {"a": None, "b": False, "c": [], "d": "", "e": 0, "f": {"g": None, "h": 1}, "i": [{"j": False}]}
+        {
+            "a": None,
+            "b": False,
+            "c": [],
+            "d": "",
+            "e": 0,
+            "f": {"g": None, "h": 1},
+            "i": [{"j": False}],
+        }
     ) == {"e": 0, "f": {"h": 1}, "i": [{}]}
     texto = asyncio.run(server._run(lambda: {"x": 1, "y": None, "z": "ñ"}))
     assert texto == '{"x":1,"z":"ñ"}'

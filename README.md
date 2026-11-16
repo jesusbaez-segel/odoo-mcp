@@ -162,6 +162,7 @@ Ejemplos de peticiones a Claude:
 
 ```bash
 uv sync                  # instala dependencias
+uv run ruff format .     # formatea; 'ruff check .' avisa de errores e imports
 uv run pytest            # ejecuta las pruebas
 uv run odoo-mcp --check  # comprueba la conexión con Odoo
 uv run odoo-mcp --mcp    # arranca el servidor por stdio
@@ -178,7 +179,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1   # en Windows -> dist\odoo-m
 ./build.sh                                           # en macOS   -> dist/odoo-mcp-mac-*.command
 ```
 
-Ambos instalan dependencias, pasan las pruebas, empaquetan con PyInstaller y
+Ambos instalan dependencias, revisan el código con ruff, pasan las pruebas, empaquetan con PyInstaller y
 verifican el binario resultante.
 
 **PyInstaller no cruza plataformas**: el ejecutable de cada sistema hay que

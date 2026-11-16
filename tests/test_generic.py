@@ -1,6 +1,5 @@
-from odoo_mcp import generic
-
 from fakes import FakeClient
+from odoo_mcp import generic
 
 
 def test_search_records_pasa_dominio_y_kwargs():
@@ -139,4 +138,7 @@ def test_get_model_fields_filtra_por_patron_en_nombre_o_etiqueta():
             }
         }
     )
-    assert list(generic.get_model_fields(client, "res.partner", pattern="correo")) == ["email", "x_dato"]
+    assert list(generic.get_model_fields(client, "res.partner", pattern="correo")) == [
+        "email",
+        "x_dato",
+    ]

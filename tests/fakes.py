@@ -40,7 +40,7 @@ class FakeClient:
             # fallar ruidosamente evita que un test ejercite la rama equivocada.
             raise AssertionError(
                 f"fields_info sin programar para {model!r}; pasa fields= al FakeClient"
-            )
+            ) from None
 
     def execute(self, model, method, args=None, kwargs=None):
         args = args or []
@@ -78,9 +78,7 @@ MODERN_TASK_FIELDS = {
             "write_date",
         ]
     },
-    "project.project": {
-        name: {"type": "char"} for name in ["name", "task_count", "user_id"]
-    },
+    "project.project": {name: {"type": "char"} for name in ["name", "task_count", "user_id"]},
 }
 
 LEGACY_TASK_FIELDS = {

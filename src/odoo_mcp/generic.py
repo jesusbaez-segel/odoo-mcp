@@ -38,7 +38,8 @@ def get_model_fields(client: OdooClient, model: str, pattern: str | None = None)
         if attrs.get("relation"):
             entry["relation"] = attrs["relation"]
         if attrs.get("selection"):
-            entry["selection"] = dict(attrs["selection"])  # {valor: etiqueta}: menos tokens que pares
+            # {valor: etiqueta}: menos tokens que la lista de pares
+            entry["selection"] = dict(attrs["selection"])
         if attrs.get("help"):
             entry["help"] = attrs["help"][:100]
         compact[name] = entry
@@ -71,7 +72,9 @@ def count_records(client: OdooClient, model: str, domain: list | None = None) ->
 def read_records(
     client: OdooClient, model: str, ids: list[int], fields: list[str] | None = None
 ) -> list[dict]:
-    return client.execute(model, "read", [ids], {"fields": fields or _campos_simples(client, model)})
+    return client.execute(
+        model, "read", [ids], {"fields": fields or _campos_simples(client, model)}
+    )
 
 
 _TIPOS_PESADOS = ("binary", "html", "one2many", "many2many")

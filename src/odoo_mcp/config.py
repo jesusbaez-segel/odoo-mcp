@@ -141,5 +141,7 @@ def load_settings(
     try:
         timeout = float(raw_timeout) if raw_timeout else 60.0
     except ValueError:
-        raise ConfigError(f"ODOO_TIMEOUT debe ser un número de segundos, no {raw_timeout!r}.")
+        raise ConfigError(
+            f"ODOO_TIMEOUT debe ser un número de segundos, no {raw_timeout!r}."
+        ) from None
     return Settings(timeout=timeout, **values)

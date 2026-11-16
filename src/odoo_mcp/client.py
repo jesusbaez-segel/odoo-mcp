@@ -84,9 +84,7 @@ class OdooClient:
             except xmlrpc.client.Fault as fault:
                 raise OdooError(_fault_message(fault)) from fault
             except (OSError, http.client.HTTPException, xmlrpc.client.Error) as exc:
-                raise OdooError(
-                    f"No se pudo conectar con Odoo en {self.base_url}: {exc}"
-                ) from exc
+                raise OdooError(f"No se pudo conectar con Odoo en {self.base_url}: {exc}") from exc
             if not uid:
                 # Claude repite este texto al usuario: debe decir qué datos se usaron y
                 # cómo corregirlos (pedir "una clave API" no sirve en Odoo 13).

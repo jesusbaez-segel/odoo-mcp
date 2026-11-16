@@ -67,7 +67,12 @@ async def _run(func, *args, **kwargs):
 
 def _vacio(valor: Any) -> bool:
     """None, False, "" y contenedores vacíos; el 0 se conserva."""
-    return valor is None or valor is False or valor == "" or (isinstance(valor, (list, dict)) and not valor)
+    return (
+        valor is None
+        or valor is False
+        or valor == ""
+        or (isinstance(valor, (list, dict)) and not valor)
+    )
 
 
 def _compactar(valor: Any) -> Any:

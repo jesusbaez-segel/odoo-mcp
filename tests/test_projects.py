@@ -1,9 +1,8 @@
 import pytest
 
+from fakes import LEGACY_TASK_FIELDS, MODERN_TASK_FIELDS, FakeClient
 from odoo_mcp import projects
 from odoo_mcp.client import OdooError
-
-from fakes import LEGACY_TASK_FIELDS, MODERN_TASK_FIELDS, FakeClient
 
 PROJECT_ROWS = [{"id": 10, "name": "Web Corporativa"}]
 STAGE_ROWS = [
@@ -224,16 +223,12 @@ def test_list_tasks_combina_filtros():
 
 
 def test_list_tasks_etapa_sin_proyecto():
-    client = FakeClient(
-        {("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS
-    )
+    client = FakeClient({("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS)
     projects.list_tasks(client, stage="En curso")
     args, _ = client.last_call("project.task", "search_read")
     assert args == [[("stage_id.name", "ilike", "En curso")]]
 
-    client2 = FakeClient(
-        {("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS
-    )
+    client2 = FakeClient({("project.task", "search_read"): []}, fields=MODERN_TASK_FIELDS)
     projects.list_tasks(client2, stage="12")
     args, _ = client2.last_call("project.task", "search_read")
     assert args == [[("stage_id", "=", 12)]]
@@ -290,9 +285,7 @@ def test_create_task_completa():
             ("project.task.type", "search_read"): [{"id": 1, "name": "Por hacer"}],
             ("res.users", "search_read"): [{"id": 5, "name": "Ana", "login": "ana"}],
             ("project.tags", "search_read"): lambda args, kwargs: (
-                [{"id": 70, "name": "urgente"}]
-                if args[0][0][2] == "urgente"
-                else []
+                [{"id": 70, "name": "urgente"}] if args[0][0][2] == "urgente" else []
             ),
             ("project.tags", "create"): 71,
             ("project.task", "create"): 500,
@@ -351,9 +344,7 @@ def test_update_task_sin_campos():
 def test_update_task_resuelve_etapa_con_el_proyecto_de_la_tarea():
     client = FakeClient(
         {
-            ("project.task", "read"): [
-                {"id": 100, "project_id": [10, "Web Corporativa"]}
-            ],
+            ("project.task", "read"): [{"id": 100, "project_id": [10, "Web Corporativa"]}],
             ("project.task.type", "search_read"): [{"id": 3, "name": "Hecho"}],
             ("project.task", "write"): True,
         },
@@ -383,11 +374,11 @@ def test_assign_task_reemplaza_o_agrega():
 def test_assign_task_version_antigua_rechaza_varios():
     client = FakeClient(
         {
-            ("res.users", "search_read"): lambda args, kwargs: [
-                {"id": 5, "name": "Ana", "login": "ana"}
-            ]
-            if "Ana" in str(args)
-            else [{"id": 6, "name": "Luis", "login": "luis"}],
+            ("res.users", "search_read"): lambda args, kwargs: (
+                [{"id": 5, "name": "Ana", "login": "ana"}]
+                if "Ana" in str(args)
+                else [{"id": 6, "name": "Luis", "login": "luis"}]
+            ),
         },
         fields=LEGACY_TASK_FIELDS,
     )

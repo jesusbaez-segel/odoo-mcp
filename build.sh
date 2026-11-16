@@ -21,10 +21,14 @@ fi
 echo "[1/4] Instalando dependencias..."
 uv sync --group dev
 
-echo "[2/4] Ejecutando las pruebas..."
+echo "[2/5] Revisando el codigo (ruff)..."
+uv run ruff check .
+uv run ruff format --check .
+
+echo "[3/5] Ejecutando las pruebas..."
 uv run pytest -q
 
-echo "[3/4] Empaquetando con PyInstaller (1-2 minutos)..."
+echo "[4/5] Empaquetando con PyInstaller (1-2 minutos)..."
 rm -rf build dist
 # Mismos motivos que en build.ps1: mcp.server/pydantic/anyio cargan submodulos de
 # forma dinamica, y mcp.cli exige 'typer', que no instalamos.
@@ -44,7 +48,7 @@ EXE="dist/odoo-mcp"
 [ -f "$EXE" ] || { echo "ERROR: no se genero $EXE" >&2; exit 1; }
 chmod +x "$EXE"
 
-echo "[4/4] Verificando el ejecutable..."
+echo "[5/5] Verificando el ejecutable..."
 SALIDA="$("$EXE" --version)"
 
 # La arquitectura la decide el Python que ejecuta PyInstaller, no la maquina:

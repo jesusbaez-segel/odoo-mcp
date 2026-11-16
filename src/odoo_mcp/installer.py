@@ -187,7 +187,7 @@ def preguntar(texto: str, obligatorio: str | None = None) -> str:
     try:
         valor = input(f"      {texto}: ").strip()
     except (EOFError, KeyboardInterrupt):
-        raise InstallerError("Instalación cancelada.")
+        raise InstallerError("Instalación cancelada.") from None
     if not valor and obligatorio:
         raise InstallerError(obligatorio)
     return valor
@@ -204,7 +204,7 @@ def pedir_clave(texto: str) -> str:
     try:
         return input(f"      {texto}: ").strip()
     except (EOFError, KeyboardInterrupt):
-        raise InstallerError("Instalación cancelada.")
+        raise InstallerError("Instalación cancelada.") from None
 
 
 def pedir_datos() -> tuple[str, str, str, str]:
@@ -380,7 +380,7 @@ def instalar_ejecutable() -> Path:
             aviso(f"      No pude actualizar el ejecutable ({exc}).")
             aviso("      Sigo con el que ya estaba instalado; cierra Claude para actualizarlo.")
             return destino
-        raise InstallerError(f"No pude copiar el servidor a {destino.parent}: {exc}")
+        raise InstallerError(f"No pude copiar el servidor a {destino.parent}: {exc}") from exc
     return destino
 
 
@@ -497,7 +497,7 @@ def asistente() -> int:
     except OdooError as exc:
         raise InstallerError(
             f"{exc}\n      Revisa el email, la contraseña y que la base '{db}' sea la correcta."
-        )
+        ) from exc
     print(f"      {VERDE}Acceso verificado: eres {nombre}.{FIN}")
 
     paso("[4/5] Guardando tu configuración...")

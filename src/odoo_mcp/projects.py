@@ -83,9 +83,7 @@ def _resolve_by_name(
     # entre los 10 de 'contiene'.
     for operator, limit in (("=ilike", 2), ("ilike", 10)):
         domain = list(domain_extra or []) + [("name", operator, name)]
-        rows = client.execute(
-            model, "search_read", [domain], {"fields": ["name"], "limit": limit}
-        )
+        rows = client.execute(model, "search_read", [domain], {"fields": ["name"], "limit": limit})
         exact = [r for r in rows if str(r["name"]).strip().lower() == name.lower()]
         if len(exact) == 1:
             return exact[0]["id"], exact[0]["name"]
@@ -94,9 +92,7 @@ def _resolve_by_name(
     if not rows:
         raise OdooError(f"No se encontró {what} llamado {name!r}.{hint}")
     options = ", ".join(f"{r['name']!r} (id {r['id']})" for r in rows)
-    raise OdooError(
-        f"Hay varios {what}s que coinciden con {name!r}: {options}. Usa el id."
-    )
+    raise OdooError(f"Hay varios {what}s que coinciden con {name!r}: {options}. Usa el id.")
 
 
 def resolve_project(client: OdooClient, project: str | int) -> tuple[int, str]:
@@ -159,11 +155,7 @@ def resolve_user(client: OdooClient, user: str | int) -> tuple[int, str]:
 def _assignee_names(client: OdooClient, tasks: list[dict], field: str) -> dict[int, str]:
     """Mapa id->nombre de los asignados que aparecen en las tareas dadas."""
     if field == "user_id":
-        return {
-            t["user_id"][0]: t["user_id"][1]
-            for t in tasks
-            if t.get("user_id")
-        }
+        return {t["user_id"][0]: t["user_id"][1] for t in tasks if t.get("user_id")}
     ids = sorted({uid for t in tasks for uid in (t.get("user_ids") or [])})
     if not ids:
         return {}
@@ -205,9 +197,7 @@ _TASK_CARD_FIELDS = [
 
 def list_projects(client: OdooClient, name: str | None = None, limit: int = 50) -> dict:
     domain: list = [("name", "ilike", name)] if name else []
-    fields = _existing_fields(
-        client, "project.project", ["name", "task_count", "user_id"]
-    )
+    fields = _existing_fields(client, "project.project", ["name", "task_count", "user_id"])
     rows = client.execute(
         "project.project",
         "search_read",
@@ -235,9 +225,7 @@ def get_board(client: OdooClient, project: str | int, max_tasks: int = 100) -> d
     )
     afield = _assignee_field(client)
     fields = _existing_fields(client, "project.task", _TASK_CARD_FIELDS + [afield])
-    total = client.execute(
-        "project.task", "search_count", [[("project_id", "=", project_id)]]
-    )
+    total = client.execute("project.task", "search_count", [[("project_id", "=", project_id)]])
     tasks = client.execute(
         "project.task",
         "search_read",
@@ -382,9 +370,7 @@ def _resolve_tags(client: OdooClient, tags: list[str]) -> list[int]:
             [[("name", "ilike", _escape_like(name))]],
             {"fields": ["name"], "limit": 20},
         )
-        exact = next(
-            (r for r in rows if str(r["name"]).strip().lower() == name.lower()), None
-        )
+        exact = next((r for r in rows if str(r["name"]).strip().lower() == name.lower()), None)
         if exact:
             ids.append(exact["id"])
         else:
@@ -397,9 +383,7 @@ def _assignee_command(client: OdooClient, assignees: list[str | int]) -> tuple[s
     user_ids = [resolve_user(client, a)[0] for a in assignees]
     if afield == "user_id":
         if len(user_ids) > 1:
-            raise OdooError(
-                "Esta versión de Odoo solo permite un asignado por tarea; indica uno."
-            )
+            raise OdooError("Esta versión de Odoo solo permite un asignado por tarea; indica uno.")
         return afield, user_ids[0] if user_ids else False
     return afield, [(6, 0, user_ids)]
 
@@ -458,15 +442,11 @@ def update_task(
     if priority is not None:
         values["priority"] = _priority_value(priority)
     if stage is not None:
-        rows = client.execute(
-            "project.task", "read", [[task_id]], {"fields": ["project_id"]}
-        )
+        rows = client.execute("project.task", "read", [[task_id]], {"fields": ["project_id"]})
         if not rows:
             raise OdooError(f"No existe la tarea con id {task_id}.")
         if not rows[0].get("project_id"):
-            raise OdooError(
-                f"La tarea {task_id} no pertenece a ningún proyecto; no tiene tablero."
-            )
+            raise OdooError(f"La tarea {task_id} no pertenece a ningún proyecto; no tiene tablero.")
         project_id = rows[0]["project_id"][0]
         values["stage_id"] = resolve_stage(client, project_id, stage)[0]
     if not values:
@@ -507,9 +487,7 @@ def assign_task(
     user_ids = [uid for uid, _ in user_pairs]
     if afield == "user_id":
         if len(user_ids) != 1:
-            raise OdooError(
-                "Esta versión de Odoo solo permite un asignado por tarea; indica uno."
-            )
+            raise OdooError("Esta versión de Odoo solo permite un asignado por tarea; indica uno.")
         values: dict[str, Any] = {"user_id": user_ids[0]}
     elif replace:
         values = {"user_ids": [(6, 0, user_ids)]}
@@ -555,11 +533,7 @@ def list_stages(client: OdooClient, project: str | int) -> list[dict]:
         "read_group",
         [[("project_id", "=", project_id)], ["stage_id"], ["stage_id"]],
     )
-    counts = {
-        g["stage_id"][0]: g.get("stage_id_count", 0)
-        for g in grouped
-        if g.get("stage_id")
-    }
+    counts = {g["stage_id"][0]: g.get("stage_id_count", 0) for g in grouped if g.get("stage_id")}
     return [
         {
             "id": s["id"],

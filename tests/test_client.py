@@ -6,9 +6,7 @@ from odoo_mcp import client as client_module
 from odoo_mcp.client import OdooClient, OdooError, _fault_message
 from odoo_mcp.config import Settings
 
-SETTINGS = Settings(
-    url="http://odoo.test", db="db", username="user@test.com", api_key="key"
-)
+SETTINGS = Settings(url="http://odoo.test", db="db", username="user@test.com", api_key="key")
 
 
 class StubProxy:

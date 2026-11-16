@@ -18,7 +18,11 @@ build-backend = "hatchling.build"
 packages = ["src/odoo_mcp"]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+dev = [
+    "pytest>=8.0",
+    "pyinstaller>=6.0",
+    "ruff>=0.9",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -32,3 +36,11 @@ pythonpath = ["tests"]
 # Hasta la 48.0.1 hay rueda universal2 que sirve para las dos arquitecturas.
 constraint-dependencies = ["cryptography<49"]
 
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "packaging"]
+
+[tool.ruff.lint]
+# E/W estilo, F errores, I imports ordenados, B fallos tipicos, UP sintaxis moderna
+select = ["E", "F", "W", "I", "B", "UP"]

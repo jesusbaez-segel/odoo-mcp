@@ -80,7 +80,9 @@ def rutas_esperadas(raiz: Path) -> tuple[Path, Path, Path, Path]:
     )
 
 
-def ejecutar(exe: Path, args: list[str], env: dict[str, str], entrada: bytes = b"") -> subprocess.CompletedProcess:
+def ejecutar(
+    exe: Path, args: list[str], env: dict[str, str], entrada: bytes = b""
+) -> subprocess.CompletedProcess:
     # cwd=HOME del sandbox: el servidor lee ./.env como comodidad de desarrollo y
     # el repositorio tiene uno de verdad que contaminaria la prueba.
     return subprocess.run(
@@ -94,7 +96,9 @@ def ejecutar(exe: Path, args: list[str], env: dict[str, str], entrada: bytes = b
 def prueba_arranque(exe: Path, env: dict[str, str]) -> None:
     print("\n[1] Arranque")
     r = ejecutar(exe, ["--version"], env)
-    comprobar(r.returncode == 0 and b"odoo-mcp" in r.stdout, f"--version -> {r.stdout.decode().strip()}")
+    comprobar(
+        r.returncode == 0 and b"odoo-mcp" in r.stdout, f"--version -> {r.stdout.decode().strip()}"
+    )
     r = ejecutar(exe, ["--help"], env)
     comprobar(r.returncode == 0 and b"--mcp" in r.stdout, "--help lista los argumentos")
     r = ejecutar(exe, ["--argumento-inventado"], env)
@@ -161,9 +165,19 @@ def prueba_mcp(exe: Path, env: dict[str, str], args: list[str]) -> None:
         tools = leer(2)
         nombres = sorted(t["name"] for t in (tools or {}).get("result", {}).get("tools", []))
         comprobar(len(nombres) == 21, f"tools/list devuelve 21 herramientas (hay {len(nombres)})")
-        comprobar("list_projects" in nombres and "call_method" in nombres, "incluye list_projects y call_method")
+        comprobar(
+            "list_projects" in nombres and "call_method" in nombres,
+            "incluye list_projects y call_method",
+        )
 
-        enviar({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "list_projects", "arguments": {}}})
+        enviar(
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "list_projects", "arguments": {}},
+            }
+        )
         llamada = leer(3)
         texto = json.dumps(llamada or {}, ensure_ascii=False)
         comprobar(
@@ -180,7 +194,9 @@ def prueba_mcp(exe: Path, env: dict[str, str], args: list[str]) -> None:
             p.kill()
             comprobar(False, "NO termina al cerrar stdin: dejaría un proceso huérfano")
         err = limpiar(p.stderr.read() if p.stderr else b"")
-        comprobar("Received exception" not in err, "stderr sin errores de validación por líneas en blanco")
+        comprobar(
+            "Received exception" not in err, "stderr sin errores de validación por líneas en blanco"
+        )
 
 
 # --- 3. Asistente: credencial rechazada ---------------------------------------
@@ -196,15 +212,21 @@ def prueba_asistente_rechaza(exe: Path, env: dict[str, str], raiz: Path) -> None
     r = ejecutar(exe, ["--instalar"], env, respuestas)
     salida = limpiar(r.stdout)
     comprobar(r.returncode == 1, f"sale con código 1 (salió {r.returncode})")
-    comprobar("No se pudo conectar" in salida or "conectar" in salida, "explica que no pudo conectar")
+    comprobar(
+        "No se pudo conectar" in salida or "conectar" in salida, "explica que no pudo conectar"
+    )
     comprobar(instalado.exists(), "el ejecutable sí se copió a su carpeta fija (paso 1)")
     comprobar(not config_env.exists(), "config.env NO se escribió")
     comprobar(
-        json.loads(json_code.read_text(encoding="utf-8"))["mcpServers"] == {"otro": {"command": "x"}},
+        json.loads(json_code.read_text(encoding="utf-8"))["mcpServers"]
+        == {"otro": {"command": "x"}},
         ".claude.json quedó intacto",
     )
     if sys.platform != "win32":
-        comprobar(bool(instalado.stat().st_mode & stat.S_IXUSR), "el binario instalado es ejecutable (chmod +x)")
+        comprobar(
+            bool(instalado.stat().st_mode & stat.S_IXUSR),
+            "el binario instalado es ejecutable (chmod +x)",
+        )
 
 
 # --- 4. --registrar --------------------------------------------------------------
@@ -225,15 +247,23 @@ def prueba_registrar(exe: Path, env: dict[str, str], raiz: Path) -> None:
     comprobar("Claude Code: configurado" in salida, "informa Claude Code configurado")
 
     code = json.loads(json_code.read_text(encoding="utf-8"))["mcpServers"]
-    comprobar(code.get("odoo", {}).get("command") == str(instalado), f"Claude Code apunta a {instalado}")
+    comprobar(
+        code.get("odoo", {}).get("command") == str(instalado), f"Claude Code apunta a {instalado}"
+    )
     comprobar(code.get("odoo", {}).get("args") == ["--mcp"], "con args ['--mcp']")
     comprobar("otro" in code, "conserva el otro servidor MCP que ya había")
 
     if sys.platform != "linux":
         comprobar("Claude Desktop: configurado" in salida, "informa Claude Desktop configurado")
         desktop = json.loads(json_desktop.read_text(encoding="utf-8"))
-        comprobar(desktop.get("mcpServers", {}).get("odoo", {}).get("command") == str(instalado), "Claude Desktop apunta al instalado")
-        comprobar(desktop.get("preferences") == {"tema": "oscuro"}, "conserva las preferencias de Claude Desktop")
+        comprobar(
+            desktop.get("mcpServers", {}).get("odoo", {}).get("command") == str(instalado),
+            "Claude Desktop apunta al instalado",
+        )
+        comprobar(
+            desktop.get("preferences") == {"tema": "oscuro"},
+            "conserva las preferencias de Claude Desktop",
+        )
         comprobar(json_desktop.with_suffix(".json.bak").exists(), "dejó copia .bak")
 
     r = ejecutar(instalado, ["--version"], env)
@@ -254,7 +284,10 @@ def prueba_check(exe: Path, env: dict[str, str], raiz: Path) -> None:
     r = ejecutar(exe, ["--check"], env)
     err = limpiar(r.stderr)
     comprobar(r.returncode == 1, f"código 1 con Odoo inalcanzable (salió {r.returncode})")
-    comprobar("127.0.0.1:9" in err, "el error menciona la URL leída del config.env (lo leyó de la ruta correcta)")
+    comprobar(
+        "127.0.0.1:9" in err,
+        "el error menciona la URL leída del config.env (lo leyó de la ruta correcta)",
+    )
     comprobar("Traceback" not in err, "sin traza cruda")
 
 
