@@ -117,14 +117,33 @@ def resolve_project(client: OdooClient, project: str | int) -> tuple[int, str]:
 
 
 def resolve_stage(client: OdooClient, project_id: int, stage: str | int) -> tuple[int, str]:
-    return _resolve_by_name(
-        client,
+    """Las etapas de un proyecto son pocas: se leen todas y se compara aquí.
+    Buscar por nombre en Odoo fallaba en una instancia real (nombres traducidos),
+    y así el error puede decir qué etapas hay."""
+    stages = client.execute(
         "project.task.type",
-        stage,
-        domain_extra=[("project_ids", "=", project_id)],
-        what="etapa",
-        hint=" Usa list_stages para ver las columnas del tablero.",
+        "search_read",
+        [[("project_ids", "=", project_id)]],
+        {"fields": ["name"], "order": "sequence asc, id asc", "context": {"active_test": False}},
     )
+    ref = str(stage).strip()
+    nombres = ", ".join(f"{s['name']!r} (id {s['id']})" for s in stages)
+    if ref.isdecimal():
+        for s in stages:
+            if s["id"] == int(ref):
+                return s["id"], s["name"]
+        if isinstance(stage, int):
+            raise OdooError(f"No existe etapa con id {ref} en este proyecto. Etapas: {nombres}.")
+        # Un string numérico puede ser un nombre ('2024'): probar por nombre.
+    exactas = [s for s in stages if s["name"].strip().lower() == ref.lower()]
+    parciales = [s for s in stages if ref.lower() in s["name"].lower()]
+    candidatas = exactas if len(exactas) == 1 else parciales
+    if len(candidatas) == 1:
+        return candidatas[0]["id"], candidatas[0]["name"]
+    if not candidatas:
+        raise OdooError(f"No hay ninguna etapa {ref!r} en este proyecto. Etapas: {nombres}.")
+    opciones = ", ".join(f"{s['name']!r} (id {s['id']})" for s in candidatas)
+    raise OdooError(f"Hay varias etapas que coinciden con {ref!r}: {opciones}. Usa el id.")
 
 
 def resolve_user(client: OdooClient, user: str | int) -> tuple[int, str]:

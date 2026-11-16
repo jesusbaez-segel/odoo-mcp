@@ -157,12 +157,28 @@ def test_resolve_project_nombre_numerico_cae_a_busqueda_por_nombre():
 
 
 def test_resolve_stage_por_id_valida_pertenencia_al_proyecto():
-    client = FakeClient({("project.task.type", "search_read"): []})
-    with pytest.raises(OdooError, match="id 42"):
+    client = FakeClient({("project.task.type", "search_read"): [{"id": 1, "name": "Por hacer"}]})
+    with pytest.raises(OdooError, match="id 42.*'Por hacer'"):
         projects.resolve_stage(client, 10, 42)
     args, kwargs = client.last_call("project.task.type", "search_read")
-    assert args[0] == [("id", "=", 42), ("project_ids", "=", 10)]
+    assert args[0] == [("project_ids", "=", 10)]  # se leen todas y se compara aquí
     assert kwargs["context"] == {"active_test": False}
+
+
+def test_resolve_stage_compara_nombres_sin_buscar_en_odoo():
+    client = FakeClient(
+        {
+            ("project.task.type", "search_read"): [
+                {"id": 4, "name": "New"},
+                {"id": 5, "name": "Done"},
+                {"id": 6, "name": "Done/Hecho"},
+            ]
+        }
+    )
+    assert projects.resolve_stage(client, 2, "done") == (5, "Done")
+    assert projects.resolve_stage(client, 2, "hecho") == (6, "Done/Hecho")
+    with pytest.raises(OdooError, match="ninguna etapa 'QA'.*'New'.*'Done'"):
+        projects.resolve_stage(client, 2, "QA")
 
 
 def test_resolve_tags_exige_igualdad_exacta_y_escapa_comodines():
