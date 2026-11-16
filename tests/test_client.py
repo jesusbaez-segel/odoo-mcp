@@ -130,3 +130,10 @@ def test_error_http_se_traduce(stubbed_client):
     common.handle_authenticate = rompe
     with pytest.raises(OdooError, match="No se pudo conectar"):
         odoo.execute("res.partner", "read", [[1]])
+
+
+def test_aviso_version_solo_fuera_del_rango_probado():
+    from odoo_mcp.client import aviso_version
+
+    assert aviso_version(13) == "" and aviso_version(18) == "" and aviso_version(0) == ""
+    assert "Odoo 19" in aviso_version(19) and "avisa a quien mantiene" in aviso_version(19)

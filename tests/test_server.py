@@ -175,3 +175,11 @@ def test_los_esquemas_de_las_tools_van_sin_title_ni_null():
     assert tarea["required"] == ["task_id"]
     proyecto = esquemas["get_board"]["properties"]["project"]
     assert proyecto["anyOf"] == [{"type": "string"}, {"type": "integer"}]
+
+
+def test_check_avisa_si_la_version_de_odoo_no_esta_probada():
+    fake = FakeClient(
+        {("res.users", "read"): [{"name": "Ana", "login": "ana@x.com"}]}, version_major=19
+    )
+    texto = server.check_connection(fake)
+    assert texto.startswith("OK: conectado") and "Odoo 19 no está entre las versiones" in texto

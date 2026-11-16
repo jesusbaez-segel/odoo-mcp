@@ -260,7 +260,7 @@ def test_asistente_de_punta_a_punta(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(
         installer, "pedir_datos", lambda: ("https://odoo.x.com", "prod", "ana@x.com", "clave")
     )
-    monkeypatch.setattr(installer, "verificar", lambda *a: "Ana Ruiz")
+    monkeypatch.setattr(installer, "verificar", lambda *a: ("Ana Ruiz", 17))
     monkeypatch.setattr(installer, "user_config_path", lambda: config_env)
     monkeypatch.setattr(installer, "config_claude_code", lambda: json_code)
     monkeypatch.setattr(installer, "configs_claude_desktop", lambda: [json_desktop])

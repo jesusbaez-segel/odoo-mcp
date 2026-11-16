@@ -16,7 +16,7 @@ import urllib.request
 from getpass import getpass
 from pathlib import Path
 
-from .client import OdooClient, OdooError
+from .client import OdooClient, OdooError, aviso_version
 from .config import Settings, user_config_path
 
 ARG_SERVIDOR = "--mcp"
@@ -228,12 +228,13 @@ def pedir_datos() -> tuple[str, str, str, str]:
     return url, db, usuario, clave
 
 
-def verificar(url: str, db: str, usuario: str, clave: str) -> str:
-    """Autentica contra Odoo antes de guardar nada. Devuelve a quién reconoció."""
+def verificar(url: str, db: str, usuario: str, clave: str) -> tuple[str, int]:
+    """Autentica contra Odoo antes de guardar nada. Devuelve (a quién reconoció,
+    versión mayor de Odoo; 0 si no se pudo saber)."""
     cliente = OdooClient(Settings(url=url, db=db, username=usuario, api_key=clave, timeout=30.0))
     uid = cliente.uid()
     datos = cliente.execute("res.users", "read", [[uid], ["name"]])
-    return datos[0].get("name", usuario) if datos else usuario
+    return (datos[0].get("name", usuario) if datos else usuario), cliente.server_major()
 
 
 # --- Escritura ----------------------------------------------------------------
@@ -493,12 +494,14 @@ def asistente() -> int:
 
     paso(f"[3/5] Comprobando el acceso a {url} ...")
     try:
-        nombre = verificar(url, db, usuario, clave)
+        nombre, version = verificar(url, db, usuario, clave)
     except OdooError as exc:
         raise InstallerError(
             f"{exc}\n      Revisa el email, la contraseña y que la base '{db}' sea la correcta."
         ) from exc
-    print(f"      {VERDE}Acceso verificado: eres {nombre}.{FIN}")
+    print(f"      {VERDE}Acceso verificado: eres {nombre} (Odoo {version or '?'}).{FIN}")
+    if aviso_version(version):
+        aviso(f"      {aviso_version(version)}")
 
     paso("[4/5] Guardando tu configuración...")
     ruta_config = user_config_path()

@@ -20,7 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from . import __version__, generic, projects, stdio_filter
-from .client import AuthError, OdooClient, OdooError
+from .client import AuthError, OdooClient, OdooError, aviso_version
 from .config import ConfigError, load_settings, user_config_path
 
 log = logging.getLogger("odoo_mcp")
@@ -391,9 +391,11 @@ def check_connection(client) -> str:
     user = users[0] if users else {}
     version = client.server_major()
     version_text = f"Odoo {version}" if version else "version desconocida"
+    aviso = aviso_version(version)
     return (
         f"OK: conectado a {client.base_url} (base {client.database}) como "
         f"{user.get('name', '?')} <{user.get('login', '?')}>, {version_text}."
+        + (f"\n{aviso}" if aviso else "")
     )
 
 

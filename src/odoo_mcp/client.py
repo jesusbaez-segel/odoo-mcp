@@ -18,6 +18,23 @@ class AuthError(OdooError):
     """Odoo rechazó usuario o contraseña."""
 
 
+VERSIONES_PROBADAS = range(13, 19)  # Odoo 13 a 18
+
+
+def aviso_version(major: int) -> str:
+    """Texto para el usuario si su Odoo no es de los probados; "" si todo bien.
+    Lo normal es que funcione igual (la API XML-RPC apenas cambia), pero
+    conviene que avise a quien mantiene el conector."""
+    if not major or major in VERSIONES_PROBADAS:
+        return ""
+    return (
+        f"Aviso: Odoo {major} no está entre las versiones probadas por este conector "
+        f"({VERSIONES_PROBADAS.start}-{VERSIONES_PROBADAS.stop - 1}). Debería funcionar; si algo "
+        "falla, avisa a quien mantiene odoo-mcp para que saque una versión para Odoo "
+        f"{major}."
+    )
+
+
 def paginar(filas: list, limit: int) -> dict:
     """Para listas pedidas con limit + 1: si sobra una fila, hay más. Evita un
     search_count por consulta y Claude sabe que el resultado está recortado."""

@@ -6,7 +6,10 @@ gestionar columnas…) y, además, con una capa genérica para operar sobre
 **cualquier modelo de Odoo** (clientes, ventas, facturas…).
 
 Compatible con Odoo 13–18 self-hosted y Odoo.sh (detecta las diferencias de versión
-en tiempo de ejecución). Nota: Odoo 13 no tiene API keys; usa la contraseña.
+en tiempo de ejecución). Si tu Odoo es de otra versión, el instalador y `--check`
+lo avisan: lo normal es que funcione igual, y si algo falla hay que pedir una
+versión del conector para ese Odoo. Nota: Odoo 13 no tiene API keys; usa la
+contraseña.
 
 ## Instalación (Windows)
 
